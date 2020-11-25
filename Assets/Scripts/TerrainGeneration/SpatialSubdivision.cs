@@ -71,8 +71,8 @@ public class SpatialSubdivision : GenerationMethod
 		for (int z = 1; z < newMap.GetLength(0); z += 2)
 		{
 			for (int x = 1; x < newMap.GetLength(1); x += 2)
-			{
-				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.001f), (smoothingFactor) / (step + 0.001f));
+			{ 
+				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.1f), (smoothingFactor) / (step + 0.1f));
 				loopCounter++;
 			}
 		}
@@ -83,7 +83,7 @@ public class SpatialSubdivision : GenerationMethod
 		{
 			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.001f), (smoothingFactor) / (step + 0.001f));
+				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.1f), (smoothingFactor) / (step + 0.1f));
 				loopCounter++;
 			}
 		}
