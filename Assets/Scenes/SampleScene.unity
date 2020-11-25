@@ -17,7 +17,7 @@ RenderSettings:
   m_Fog: 1
   m_FogColor: {r: 0.65080994, g: 0.666729, b: 0.7075472, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.005
+  m_FogDensity: 0.001
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -97,7 +97,8 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 35923d468e7b36b48bf1d5c151e7441f,
+    type: 2}
   m_UseShadowmask: 0
 --- !u!196 &4
 NavMeshSettings:
@@ -247,9 +248,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1297308444}
-  - component: {fileID: 1297308443}
   - component: {fileID: 1297308442}
   - component: {fileID: 1297308441}
+  - component: {fileID: 1297308443}
   m_Layer: 0
   m_Name: TerrainMesh
   m_TagString: Untagged
@@ -313,14 +314,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1297308440}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7a1c90e472e93f24387003988e2206b6, type: 3}
+  m_Script: {fileID: 11500000, guid: a1ea935d00c4bef4f8dd39d74df4de30, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapCellsX: 128
-  mapCellsZ: 128
-  mapCellSize: 1
-  smoothingSteps: 3
-  smoothingFactor: 0.3
+  mapCellsX: 127
+  mapCellsZ: 127
+  mapCellSize: 10
+  mapHeightMax: 1
+  mapSmoothness: 0.01
 --- !u!4 &1297308444
 Transform:
   m_ObjectHideFlags: 0
@@ -427,7 +428,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 1500
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -485,7 +486,7 @@ MonoBehaviour:
   m_RenderPostProcessing: 1
   m_Antialiasing: 1
   m_AntialiasingQuality: 2
-  m_StopNaN: 0
+  m_StopNaN: 1
   m_Dithering: 0
   m_ClearDepth: 1
   m_RequiresDepthTexture: 0

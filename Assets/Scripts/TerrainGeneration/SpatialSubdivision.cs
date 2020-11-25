@@ -2,13 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SpatialSubdivision : MonoBehaviour
+public class SpatialSubdivision : GenerationMethod
 {
-	Mesh mesh;
-
-	Vector3[] vertices;
-	int[] triangles;
-
 	public int mapCellsX = 256;
 	public int mapCellsZ = 256;
 
@@ -16,8 +11,16 @@ public class SpatialSubdivision : MonoBehaviour
 
 	public int smoothingSteps = 3;
 
-	[Range(0f, 1f)]
 	public float smoothingFactor = 0.1f;
+
+	public SpatialSubdivision(int mapSizeX, int mapSizeZ, int mapCellSize, int smoothingSteps, float smoothingFactor)
+	{
+		this.mapCellsX = mapSizeX;
+		this.mapCellsZ = mapSizeZ;
+		this.mapCellSize = mapCellSize;
+		this.smoothingSteps = smoothingSteps;
+		this.smoothingFactor = smoothingFactor;
+	}
 
 	private float[,] genInputArr()
 	{
@@ -26,7 +29,7 @@ public class SpatialSubdivision : MonoBehaviour
 		{
 			for (int x = 0; x < 2; ++x)
 			{
-				input[z, x] = Random.Range(-1f, 1f) ;
+				input[z, x] = Random.Range(-1f, 1f);
 			}
 		}
 
@@ -48,7 +51,7 @@ public class SpatialSubdivision : MonoBehaviour
 
 	private float[,] genMap(float[,] previousMap, int step)
 	{
-		if (previousMap.Length >= (1+mapCellsX) * (1+mapCellsZ))
+		if (previousMap.Length >= (1 + mapCellsX) * (1 + mapCellsZ))
 		{
 			return previousMap;
 		}
@@ -63,27 +66,33 @@ public class SpatialSubdivision : MonoBehaviour
 				newMap[z * 2, x * 2] = previousMap[z, x];
 			}
 		}
-
+		int loopCounter = 0;
 		//find values for empty points diagonally
 		for (int z = 1; z < newMap.GetLength(0); z += 2)
 		{
 			for (int x = 1; x < newMap.GetLength(1); x += 2)
 			{
-					newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range(-smoothingFactor / (step + 0.1f), smoothingFactor / (step + 0.1f));
+				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.001f), (smoothingFactor) / (step + 0.001f));
+				loopCounter++;
 			}
 		}
-
+		Debug.Log("Loop counter after first loop " + loopCounter);
+		loopCounter = 0;
 		//find values for empty points orthogonally
 		for (int z = 0; z < newMap.GetLength(0); ++z)
 		{
-			for (int x = (z+1) % 2; x < newMap.GetLength(1); x += 2)
+			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range(-smoothingFactor / (step + 0.1f), smoothingFactor / (step + 0.1f));
+				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.001f), (smoothingFactor) / (step + 0.001f));
+				loopCounter++;
 			}
 		}
+		Debug.Log("Loop counter after second loop " + loopCounter);
+
 
 		return genMap(newMap, step + 1);
 	}
+
 	private float averageOrthogonal(float[,] map, int z, int x)
 	{
 		//create average of nearby points
@@ -115,6 +124,7 @@ public class SpatialSubdivision : MonoBehaviour
 
 		return average / 4f;
 	}
+
 	private float averageDiagonal(float[,] map, int y, int x)
 	{
 		//create average of nearby points
@@ -126,6 +136,7 @@ public class SpatialSubdivision : MonoBehaviour
 		if (y + 1 >= map.GetLength(0))
 		{
 			average += map[0, x - 1];
+
 			//x overflow handling
 			if (x + 1 >= map.GetLength(1))
 				average += map[0, 0];
@@ -135,12 +146,12 @@ public class SpatialSubdivision : MonoBehaviour
 		else
 		{
 			average += map[y + 1, x - 1];
+
 			//x overflow handling
 			if (x + 1 >= map.GetLength(1))
 				average += map[y + 1, 0];
 			else
 				average += map[y + 1, x + 1];
-
 		}
 
 		if (x + 1 >= map.GetLength(1))
@@ -151,70 +162,32 @@ public class SpatialSubdivision : MonoBehaviour
 		return average / 4f;
 	}
 
-	private void CreateMesh(float[,] heightMap)
+	private float[,] normalizeMap(float [,] map)
 	{
-		vertices = new Vector3[(mapCellsZ + 1) * (mapCellsX + 1)];
-		WaitForSeconds wait = new WaitForSeconds(0f);
-		for (int i = 0, z = 0; z <= mapCellsZ; z++)
+		float maxVal = float.MinValue;
+		float minVal = float.MaxValue;
+
+		foreach (float val in map)
 		{
-			for (int x = 0; x <= mapCellsX; x++, i++)
+			if (val > maxVal)
+				maxVal = val;
+			else if (val < minVal)
+				minVal = val;
+		}
+
+		for(int z = 0; z < map.GetLength(0); ++z)
+		{
+			for (int x = 0; x < map.GetLength(1); ++x)
 			{
-				vertices[i] = new Vector3(x*mapCellSize, heightMap[z,x]*10, z*mapCellSize);
+				map[z,x] = (map[z, x] - minVal);
 			}
 		}
 
-		triangles = new int[6 * mapCellsX * mapCellsZ];
-
-		for (int ti = 0, vi = 0, z = 0; z < mapCellsZ; z++, vi++)
-		{
-			for (int x = 0; x < mapCellsX; x++, ti += 6, vi++)
-			{
-				triangles[ti] = vi;
-				triangles[ti + 3] = triangles[ti + 2] = vi + 1;
-				triangles[ti + 4] = triangles[ti + 1] = vi + mapCellsX + 1;
-				triangles[ti + 5] = vi + mapCellsX + 2;
-				UpdateMesh();			
-			}
-		}
-
-		UpdateMesh();
-
+		return map;
 	}
 
-	private void UpdateMesh()
+	public override float[,] CreateHeightMap()
 	{
-		mesh.Clear();
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-
-		//mesh.RecalculateNormals();
-	}
-
-	// Start is called before the first frame update
-	private void Start()
-	{
-		mesh = new Mesh();
-		GetComponent<MeshFilter>().mesh = mesh;
-
-		float[,] map = genInputArr();
-
-		float[,] newMap = genMap(map, 0);
-
-		CreateMesh(newMap);
-	}
-
-	// Update is called once per frame
-	private void Update()
-	{
-	}
-
-	private void OnDrawGizmos()
-	{
-		if(vertices == null)
-		{ return; }
-		foreach(Vector3 vertex in vertices)
-		{
-			Gizmos.DrawSphere(vertex, .5f);
-		}
+		return (genMap(genInputArr(), 0));
 	}
 }
