@@ -5,56 +5,100 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainGenerator : MonoBehaviour
 {
+	public enum GenerationMethodType
+	{
+		SpatialSubdivision,
+		PerlinVoronoiHybrid
+	}
+
+	public GenerationMethodType methodType = GenerationMethodType.SpatialSubdivision;
+
+	public bool autoUpdateMap = false;
+	public int seed = 0;
+	public int mapSize = 64;
+	public float mapCellSize = 10;
+
+	[Range(1, 10)]
+	public int octaves = 3;
+
+	[Range(0, 1)]
+	public float persistance = 0.5f;
+
+	public float mapHeightMultiplier = 10;
+	public float mapSmoothness = 0.1f;
+	public float noiseScale = 1f;
+
 	private Mesh mesh;
 	private Vector3[] vertices;
 	private int[] triangles;
 
 	private GenerationMethod generationMethod;
-	public int mapCellsX = 64;
-	public int mapCellsZ = 64;
-	public int mapCellSize = 10;
-	public int mapHeightMax = 100;
-	public float mapSmoothness = 0.1f;
 
 	// Start is called before the first frame update
-	private void Start()
-	{
-		mesh = GetComponent<MeshFilter>().mesh;
-		generationMethod = new SpatialSubdivision(mapCellsX, mapCellsZ, mapCellSize, 3, mapSmoothness);
+	private void Start() {
+		GenerateMap();
+	}
 
+	private void OnValidate() {
+		if (mapSize < 1)
+			mapSize = 1;
+		else if (mapSize > 255)
+			mapSize = 255;
+
+		if (mapCellSize <= 0)
+			mapCellSize = 0.0001f;
+
+		if (octaves < 1)
+			octaves = 1;
+
+		if (mapHeightMultiplier <= 0)
+			mapHeightMultiplier = 0.0001f;
+
+		if (mapSmoothness < 1)
+			mapSmoothness = 1f;
+
+		if (noiseScale <= 0)
+			noiseScale = 0.0001f;
+	}
+
+	public void GenerateMap() {
+		mesh = GetComponent<MeshFilter>().sharedMesh;
+		switch (methodType) {
+			case GenerationMethodType.SpatialSubdivision: {
+				generationMethod = new SpatialSubdivision(mapSize, mapSize, seed, mapCellSize, mapSmoothness);
+				break;
+			}
+			case GenerationMethodType.PerlinVoronoiHybrid: {
+				generationMethod = new PerlinVoronoiHybrid(mapSize, mapSize, seed, mapCellSize, noiseScale, octaves, persistance, mapSmoothness);
+				break;
+			}
+		}
+		if (noiseScale <= 0) {
+			noiseScale = 0.0001f;
+		}
 		var temp = Time.realtimeSinceStartup;
 
 		CreateMesh(generationMethod.CreateHeightMap());
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
-	// Update is called once per frame
-	private void Update()
-	{
-	}
+	public void CreateMesh(float[,] heightMap) {
+		vertices = new Vector3[(mapSize + 1) * (mapSize + 1)];
 
-	public void CreateMesh(float[,] heightMap)
-	{
-		vertices = new Vector3[(mapCellsZ + 1) * (mapCellsX + 1)];
-
-		for (int i = 0, z = 0; z <= mapCellsZ; z++)
-		{
-			for (int x = 0; x <= mapCellsX; x++, i++)
-			{
-				vertices[i] = new Vector3(x * mapCellSize, heightMap[z, x] * mapHeightMax, z * mapCellSize);
+		for (int i = 0, z = 0; z <= mapSize; z++) {
+			for (int x = 0; x <= mapSize; x++, i++) {
+				vertices[i] = new Vector3(x * mapCellSize, heightMap[x, z] * mapHeightMultiplier, z * mapCellSize);
 			}
 		}
 
-		triangles = new int[6 * mapCellsX * mapCellsZ];
+		triangles = new int[6 * mapSize * mapSize];
 
-		for (int ti = 0, vi = 0, z = 0; z < mapCellsZ; z++, vi++)
-		{
-			for (int x = 0; x < mapCellsX; x++, ti += 6, vi++)
-			{
+		for (int ti = 0, vi = 0, z = 0; z < mapSize; z++, vi++) {
+			for (int x = 0; x < mapSize; x++, ti += 6, vi++) {
 				triangles[ti] = vi;
 				triangles[ti + 3] = triangles[ti + 2] = vi + 1;
-				triangles[ti + 4] = triangles[ti + 1] = vi + mapCellsX + 1;
-				triangles[ti + 5] = vi + mapCellsX + 2;
+				triangles[ti + 4] = triangles[ti + 1] = vi + mapSize + 1;
+				triangles[ti + 5] = vi + mapSize + 2;
 			}
 		}
 
@@ -64,4 +108,7 @@ public class TerrainGenerator : MonoBehaviour
 		mesh.RecalculateNormals();
 	}
 
+	public void ClearMesh() {
+		mesh.Clear();
+	}
 }

@@ -4,22 +4,15 @@ using UnityEngine;
 
 public class SpatialSubdivision : GenerationMethod
 {
-	public int mapCellsX = 256;
-	public int mapCellsZ = 256;
-
-	public int mapCellSize = 10;
-
-	public int smoothingSteps = 3;
-
-	public float smoothingFactor = 0.1f;
-
-	public SpatialSubdivision(int mapSizeX, int mapSizeZ, int mapCellSize, int smoothingSteps, float smoothingFactor)
+	public SpatialSubdivision(int mapSizeX, int mapSizeZ, int seed, float mapCellSize, float smoothingFactor)
 	{
 		this.mapCellsX = mapSizeX;
 		this.mapCellsZ = mapSizeZ;
+		this.seed = seed;
 		this.mapCellSize = mapCellSize;
-		this.smoothingSteps = smoothingSteps;
 		this.smoothingFactor = smoothingFactor;
+
+		prng = new System.Random(seed);
 	}
 
 	private float[,] genInputArr()
@@ -29,7 +22,7 @@ public class SpatialSubdivision : GenerationMethod
 		{
 			for (int x = 0; x < 2; ++x)
 			{
-				input[z, x] = Random.Range(-1f, 1f);
+				input[z, x] = prng.Next(-100000, 100000)/200000;
 			}
 		}
 
@@ -43,7 +36,7 @@ public class SpatialSubdivision : GenerationMethod
 		{
 			for (int x = 0; x < mapCellsX; ++x)
 			{
-				noiseMap[z, x] = Random.value;
+				noiseMap[z, x] = (float)prng.NextDouble();
 			}
 		}
 		return noiseMap;
