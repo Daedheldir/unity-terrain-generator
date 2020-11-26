@@ -28,8 +28,13 @@ public class TerrainGenerator : MonoBehaviour
 	public float noiseScale = 1f;
 	public float perlinWeight = 1f;
 
+	public int voronoiPoints = 50;
+
 	public float voronoiScale = 1f;
 	public float voronoiWeight = 1f;
+
+	public float voronoiMaskScale = 1f;
+	public float voronoiMaskWeight = 1f;
 
 	private Mesh mesh;
 	private Vector3[] vertices;
@@ -72,11 +77,13 @@ public class TerrainGenerator : MonoBehaviour
 		}
 		switch (methodType) {
 			case GenerationMethodType.SpatialSubdivision: {
-				generationMethod = new SpatialSubdivision(mapSize, mapSize, seed, mapCellSize, mapSmoothness);
+				generationMethod = new SpatialSubdivision(mapSize, seed, mapCellSize, mapSmoothness);
 				break;
 			}
 			case GenerationMethodType.PerlinVoronoiHybrid: {
-				generationMethod = new PerlinVoronoiHybrid(mapSize, mapSize, seed, mapCellSize, noiseScale, perlinWeight, voronoiScale, voronoiWeight, octaves, persistance, mapSmoothness);
+				generationMethod = new PerlinVoronoiHybrid(mapSize, seed, mapCellSize,
+					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
+					voronoiPoints, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight);
 				break;
 			}
 		}

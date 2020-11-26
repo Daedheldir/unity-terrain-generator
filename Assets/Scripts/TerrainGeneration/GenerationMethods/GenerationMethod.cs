@@ -4,8 +4,7 @@ using UnityEngine;
 
 public abstract class GenerationMethod
 {
-	public int mapCellsX = 255;
-	public int mapCellsZ = 255;
+	public int mapSize = 255;
 
 	public float mapCellSize = 1;
 
