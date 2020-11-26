@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(MeshFilter))]
 public class TerrainGenerator : MonoBehaviour
 {
 	public enum GenerationMethodType
@@ -27,6 +26,10 @@ public class TerrainGenerator : MonoBehaviour
 	public float mapHeightMultiplier = 10;
 	public float mapSmoothness = 0.1f;
 	public float noiseScale = 1f;
+	public float perlinWeight = 1f;
+
+	public float voronoiScale = 1f;
+	public float voronoiWeight = 1f;
 
 	private Mesh mesh;
 	private Vector3[] vertices;
@@ -63,13 +66,17 @@ public class TerrainGenerator : MonoBehaviour
 
 	public void GenerateMap() {
 		mesh = GetComponent<MeshFilter>().sharedMesh;
+		if (mesh == null) {
+			mesh = new Mesh();
+			GetComponent<MeshFilter>().sharedMesh = mesh;
+		}
 		switch (methodType) {
 			case GenerationMethodType.SpatialSubdivision: {
 				generationMethod = new SpatialSubdivision(mapSize, mapSize, seed, mapCellSize, mapSmoothness);
 				break;
 			}
 			case GenerationMethodType.PerlinVoronoiHybrid: {
-				generationMethod = new PerlinVoronoiHybrid(mapSize, mapSize, seed, mapCellSize, noiseScale, octaves, persistance, mapSmoothness);
+				generationMethod = new PerlinVoronoiHybrid(mapSize, mapSize, seed, mapCellSize, noiseScale, perlinWeight, voronoiScale, voronoiWeight, octaves, persistance, mapSmoothness);
 				break;
 			}
 		}
@@ -84,10 +91,12 @@ public class TerrainGenerator : MonoBehaviour
 
 	public void CreateMesh(float[,] heightMap) {
 		vertices = new Vector3[(mapSize + 1) * (mapSize + 1)];
+		Vector2[] uv = new Vector2[(mapSize + 1) * (mapSize + 1)];
 
 		for (int i = 0, z = 0; z <= mapSize; z++) {
 			for (int x = 0; x <= mapSize; x++, i++) {
 				vertices[i] = new Vector3(x * mapCellSize, heightMap[x, z] * mapHeightMultiplier, z * mapCellSize);
+				uv[i] = new Vector2(x, z);
 			}
 		}
 
@@ -105,7 +114,9 @@ public class TerrainGenerator : MonoBehaviour
 		mesh.Clear();
 		mesh.vertices = vertices;
 		mesh.triangles = triangles;
+		mesh.uv = uv;
 		mesh.RecalculateNormals();
+		mesh.RecalculateTangents();
 	}
 
 	public void ClearMesh() {
