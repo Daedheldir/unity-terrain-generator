@@ -45,6 +45,7 @@ public class TerrainGenerator : MonoBehaviour
 
 	private Texture2D texture;
 	private Terrain terrain;
+	private TerrainCollider terrainCollider;
 
 	private GenerationMethod generationMethod;
 
@@ -87,6 +88,7 @@ public class TerrainGenerator : MonoBehaviour
 
 	public void GenerateMap() {
 		terrain = GetComponent<Terrain>();
+		terrainCollider = GetComponent<TerrainCollider>();
 
 		switch (methodType) {
 			case GenerationMethodType.SpatialSubdivision: {
@@ -107,12 +109,20 @@ public class TerrainGenerator : MonoBehaviour
 
 		//CreateMesh(generationMethod.CreateHeightMap());
 		float[,] heightMap = generationMethod.CreateHeightMap();
+
 		//texture = CreateTexture(heightMap);
 		TerrainData tData = new TerrainData();
+		if (terrain.terrainData != null) {
+			tData = terrain.terrainData;
+		}
 		tData.heightmapResolution = mapSize + 1;
 		tData.size = new Vector3(mapSize, mapHeightMultiplier, mapSize);
 		tData.SetHeights(0, 0, heightMap);
+
 		terrain.terrainData = tData;
+
+		terrainCollider.terrainData = terrain.terrainData;
+
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
