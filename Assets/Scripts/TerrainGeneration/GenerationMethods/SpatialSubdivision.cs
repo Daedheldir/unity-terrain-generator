@@ -4,10 +4,9 @@ using UnityEngine;
 
 public class SpatialSubdivision : GenerationMethod
 {
-	public SpatialSubdivision(int mapSize, int seed, float mapCellSize, float smoothingFactor) {
+	public SpatialSubdivision(int mapSize, int seed, float smoothingFactor) {
 		this.mapSize = mapSize;
 		this.seed = seed;
-		this.mapCellSize = mapCellSize;
 		this.smoothingFactor = smoothingFactor;
 
 		prng = new System.Random(seed);

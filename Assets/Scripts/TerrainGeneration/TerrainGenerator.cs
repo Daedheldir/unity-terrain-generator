@@ -30,13 +30,23 @@ public class TerrainGenerator : MonoBehaviour
 
 	public int voronoiPoints = 50;
 
+	public float voronoiMinHeight = 0.1f;
+
 	public float voronoiScale = 1f;
 	public float voronoiWeight = 1f;
 
-	public float voronoiMaskScale = 1f;
+	[Range(0f, 1f)]
+	public float voronoiMaskScale = 0.1f;
+
 	public float voronoiMaskWeight = 1f;
+	public int voronoiOctaves = 3;
+	public float voronoiPersistance = 0.5f;
+
+	[Range(0.1f, 2f)]
+	public float voronoiSmoothing = 0.5f;
 
 	private Mesh mesh;
+	private MeshCollider meshCollider;
 	private Vector3[] vertices;
 	private int[] triangles;
 
@@ -50,8 +60,8 @@ public class TerrainGenerator : MonoBehaviour
 	private void OnValidate() {
 		if (mapSize < 1)
 			mapSize = 1;
-		else if (mapSize > 255)
-			mapSize = 255;
+		else if (mapSize > 512)
+			mapSize = 512;
 
 		if (mapCellSize <= 0)
 			mapCellSize = 0.0001f;
@@ -67,29 +77,49 @@ public class TerrainGenerator : MonoBehaviour
 
 		if (noiseScale <= 0)
 			noiseScale = 0.0001f;
+
+		if (voronoiOctaves > 30f / voronoiPoints)
+			voronoiOctaves = Mathf.Min((int)((30f / voronoiPoints) > 1 ? (30f / voronoiPoints) : 1), 4);
+		if (voronoiOctaves <= 0)
+			voronoiOctaves = 1;
+
+		if (voronoiSmoothing <= 0f)
+			voronoiSmoothing = 0.1f;
+		if (voronoiSmoothing > 2f)
+			voronoiSmoothing = 2f;
+
+		if (voronoiPersistance <= -3f)
+			voronoiPersistance = -3f;
+		if (voronoiPersistance > 3f)
+			voronoiPersistance = 3f;
 	}
 
 	public void GenerateMap() {
+
+		//assigning components
 		mesh = GetComponent<MeshFilter>().sharedMesh;
+		meshCollider = GetComponent<MeshCollider>();
+
+		//if there's no mesh create a new one
 		if (mesh == null) {
 			mesh = new Mesh();
 			GetComponent<MeshFilter>().sharedMesh = mesh;
 		}
+
+		//choosing terrain generation method
 		switch (methodType) {
 			case GenerationMethodType.SpatialSubdivision: {
-				generationMethod = new SpatialSubdivision(mapSize, seed, mapCellSize, mapSmoothness);
+				generationMethod = new SpatialSubdivision(mapSize, seed, mapSmoothness);
 				break;
 			}
 			case GenerationMethodType.PerlinVoronoiHybrid: {
-				generationMethod = new PerlinVoronoiHybrid(mapSize, seed, mapCellSize,
+				generationMethod = new PerlinVoronoiHybrid(mapSize, seed,
 					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
-					voronoiPoints, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight);
+					voronoiPoints, voronoiMinHeight, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight, voronoiOctaves, voronoiPersistance, voronoiSmoothing);
 				break;
 			}
 		}
-		if (noiseScale <= 0) {
-			noiseScale = 0.0001f;
-		}
+
 		var temp = Time.realtimeSinceStartup;
 
 		CreateMesh(generationMethod.CreateHeightMap());
@@ -102,8 +132,8 @@ public class TerrainGenerator : MonoBehaviour
 
 		for (int i = 0, z = 0; z <= mapSize; z++) {
 			for (int x = 0; x <= mapSize; x++, i++) {
-				vertices[i] = new Vector3(x * mapCellSize, heightMap[x, z] * mapHeightMultiplier, z * mapCellSize);
-				uv[i] = new Vector2(x, z);
+				vertices[i] = new Vector3(x, heightMap[x, z] * mapHeightMultiplier, z);
+				uv[i] = new Vector2(((float)x) / ((float)mapSize), ((float)z) / ((float)mapSize));
 			}
 		}
 
@@ -117,13 +147,15 @@ public class TerrainGenerator : MonoBehaviour
 				triangles[ti + 5] = vi + mapSize + 2;
 			}
 		}
-
 		mesh.Clear();
 		mesh.vertices = vertices;
 		mesh.triangles = triangles;
 		mesh.uv = uv;
 		mesh.RecalculateNormals();
 		mesh.RecalculateTangents();
+		mesh.RecalculateBounds();
+
+		meshCollider.sharedMesh = mesh;
 	}
 
 	public void ClearMesh() {

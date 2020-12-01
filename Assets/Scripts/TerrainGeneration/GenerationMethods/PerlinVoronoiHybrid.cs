@@ -1,102 +1,100 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class PerlinVoronoiHybrid : GenerationMethod
 {
+	private static Mutex mapWeightPairsMu = new Mutex();
+
 	public float perlinScale = 1f;
 	public float perlinWeight = 1f;
 	public float persistance = 0.5f;
 	public int octaves = 3;
 
+	public float voronoiMinHeight = 0.1f;
 	public float voronoiScale = 1f;
 	public float voronoiWeight = 1f;
-	public float voronoiMaskScale = 1f;
+	private float[,] voronoiPerlinMask;
+	public float voronoiMaskScale = 0.01f;
 	public float voronoiMaskWeight = 1f;
+	public int voronoiOctaves = 3;
+	public float voronoiPersistance = 0.5f;
+	public float voronoiSmoothing = 0.5f;
 
 	public int numberOfVoronoiPoints = 50;
 
 	public PerlinVoronoiHybrid
 		(
-		int mapSizeX, int seed, float mapCellSize,
+		int mapSizeX, int seed,
 		float perlinScale, float perlinWeight, int octaves, float persistance, float smoothingFactor,
-		int voronoiPoints, float voronoiScale, float voronoiWeight, float voronoiMaskScale, float voronoiMaskWeight
+		int voronoiPoints, float voronoiMinHeight, float voronoiScale, float voronoiWeight, float voronoiMaskScale, float voronoiMaskWeight, int voronoiOctaves, float voronoiPersistance, float voronoiSmoothing
 		) {
 
 		//
 		this.mapSize = mapSizeX;
-		this.mapCellSize = mapCellSize;
+		this.seed = seed;
 
 		this.perlinScale = perlinScale;
 		this.perlinWeight = perlinWeight;
-
-		this.numberOfVoronoiPoints = voronoiPoints;
-		this.voronoiScale = voronoiScale;
-		this.voronoiWeight = voronoiWeight;
-		this.voronoiMaskScale = voronoiMaskScale;
-		this.voronoiMaskWeight = voronoiMaskWeight;
-
-		this.seed = seed;
 		this.octaves = octaves;
 		this.persistance = persistance;
 		this.smoothingFactor = smoothingFactor;
 
+		this.numberOfVoronoiPoints = voronoiPoints;
+		this.voronoiMinHeight = voronoiMinHeight;
+		this.voronoiOctaves = voronoiOctaves;
+		this.voronoiScale = voronoiScale;
+		this.voronoiWeight = voronoiWeight;
+		this.voronoiMaskScale = voronoiMaskScale;
+		this.voronoiMaskWeight = voronoiMaskWeight;
+		this.voronoiPersistance = voronoiPersistance;
+		this.voronoiSmoothing = voronoiSmoothing;
+
 		prng = new System.Random(seed);
 	}
 
+	/// <summary>
+	/// Creates height map with values in range [0,1]
+	/// </summary>
+	/// <returns>
+	/// </returns>
 	public override float[,] CreateHeightMap() {
-		float[,] heightMap = new float[mapSize + 1, mapSize + 1];
-
-		float[,] voronoiMap = CreateVoronoiGraph();
-		float[,] voronoiMask = CreateNoiseMask(voronoiMaskScale);
 		float[,] perlinMap = CreatePerlinNoise();
-
-		for (int z = 0; z < mapSize + 1; ++z) {
-			for (int x = 0; x < mapSize + 1; ++x) {
-				heightMap[x, z] = (perlinMap[x, z] * perlinWeight) + ((voronoiMap[x, z] * (voronoiMask[x, z] * voronoiMaskWeight)) * voronoiWeight);
-			}
-		}
-		return heightMap;
-	}
-
-	private float[,] CreateNoiseMask(float scale) {
-		float[,] map = new float[mapSize + 1, mapSize + 1];
+		float[,] voronoiMap = CreateVoronoiGraph();
 
 		float maxValue = float.MinValue;
 		float minValue = float.MaxValue;
 
+		//merging all height maps
+		float[,] heightMap = new float[mapSize + 1, mapSize + 1];
+
 		for (int z = 0; z < mapSize + 1; ++z) {
 			for (int x = 0; x < mapSize + 1; ++x) {
-				float noiseHeight = 0f;
 
-				float sampleZ = (z) / scale;
-				float sampleX = (x) / scale;
+				//adding Perlin
+				float noiseHeight = perlinMap[x, z] * perlinWeight;
 
-				float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ);
-
-				noiseHeight += perlinValue;
+				//adding Voronoi
+				float voronoiValue = voronoiMap[x, z] * (Mathf.Pow(voronoiPerlinMask[x, z], voronoiMaskWeight));
+				noiseHeight += voronoiValue * voronoiWeight;
 
 				if (noiseHeight > maxValue)
 					maxValue = noiseHeight;
 				else if (noiseHeight < minValue)
 					minValue = noiseHeight;
 
-				map[x, z] = noiseHeight;
+				heightMap[x, z] += noiseHeight;
 			}
 		}
 
-		//normalizing values to be between 0-1
-		for (int z = 0; z < mapSize + 1; ++z) {
-			for (int x = 0; x < mapSize + 1; ++x) {
-				map[x, z] = Mathf.InverseLerp(minValue, maxValue, map[x, z]);
-			}
-		}
-
-		return map;
+		//heightMap = NormalizeMap(heightMap, minValue, maxValue);
+		return heightMap;
 	}
 
 	private float[,] CreatePerlinNoise() {
 		float[,] map = new float[mapSize + 1, mapSize + 1];
+		float[,] firstOctave = new float[mapSize + 1, mapSize + 1];
 
 		Vector2[] octaveOffsets = new Vector2[octaves];
 
@@ -111,7 +109,6 @@ public class PerlinVoronoiHybrid : GenerationMethod
 
 		float halfX = mapSize / 2f;
 		float halfZ = mapSize / 2f;
-
 		for (int z = 0; z < mapSize + 1; ++z) {
 			for (int x = 0; x < mapSize + 1; ++x) {
 				float amplitude = 1;
@@ -122,9 +119,12 @@ public class PerlinVoronoiHybrid : GenerationMethod
 					float sampleZ = (z - halfZ) / perlinScale * frequency + octaveOffsets[i].y;
 					float sampleX = (x - halfX) / perlinScale * frequency + octaveOffsets[i].x;
 
-					float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ) * 2 - 1;
+					float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ);
 
 					noiseHeight += perlinValue * amplitude;
+
+					if (i == 0)
+						firstOctave[x, z] = noiseHeight;
 
 					amplitude *= persistance;
 					frequency *= smoothingFactor;
@@ -140,12 +140,10 @@ public class PerlinVoronoiHybrid : GenerationMethod
 		}
 
 		//normalizing values to be between 0-1
-		for (int z = 0; z < mapSize + 1; ++z) {
-			for (int x = 0; x < mapSize + 1; ++x) {
-				map[x, z] = Mathf.InverseLerp(minValue, maxValue, map[x, z]);
-			}
-		}
+		map = NormalizeMap(map, minValue, maxValue);
 
+		//wait for access to resources
+		voronoiPerlinMask = firstOctave;
 		return map;
 	}
 
@@ -153,12 +151,23 @@ public class PerlinVoronoiHybrid : GenerationMethod
 		float[,] map = new float[mapSize + 1, mapSize + 1];
 
 		//creating random points
-		Vector2[] points = new Vector2[numberOfVoronoiPoints];
-		List<List<Vector2>> pointsNeighbours = new List<List<Vector2>>();
-		for (int i = 0; i < numberOfVoronoiPoints; ++i) {
-			points[i] = new Vector2(prng.Next(0, mapSize), prng.Next(0, mapSize));
-			pointsNeighbours.Add(new List<Vector2>());
+		List<List<Vector2>> points = new List<List<Vector2>>();
+		float frequency = 1f;
+
+		//clamping voronoiSmoothing
+		if (voronoiSmoothing <= 0f)
+			voronoiSmoothing = 0.00001f;
+
+		for (int j = 0; j < voronoiOctaves; ++j) {
+			points.Add(new List<Vector2>());    //add a new octave points list
+			for (int i = 0; i < numberOfVoronoiPoints * frequency; ++i) {
+				points[j].Add(new Vector2(prng.Next(0, mapSize), prng.Next(0, mapSize)));
+			}
+
+			//after each octave, next octave should have more points so i has more details
+			frequency /= voronoiSmoothing;
 		}
+
 		float maxValue = float.MinValue;
 		float minValue = float.MaxValue;
 
@@ -167,40 +176,49 @@ public class PerlinVoronoiHybrid : GenerationMethod
 				float minDistance = float.MaxValue;
 				float maxDistance = float.MinValue;
 
+				float amplitude = 1f;
+				float noiseHeight = 0f;
+
 				Vector2 mapPoint = new Vector2(x, z);
 
-				//find closest point to current map cell
-				for (int i = 0; i < points.Length; ++i) {
-					float currentDistance = Vector2.Distance(mapPoint, points[i]);
+				//iterate through all octaves
+				for (int j = 0; j < voronoiOctaves; ++j) {
 
-					if (currentDistance < minDistance) {
-						minDistance = currentDistance;
+					//find closest point to current map cell
+					for (int i = 0; i < points[j].Count; ++i) {
+						float currentDistance = Vector2.Distance(mapPoint, points[j][i]);
+
+						if (currentDistance < minDistance) {
+							minDistance = currentDistance;
+						}
+						if (currentDistance > maxDistance) {
+							maxDistance = currentDistance;
+						}
 					}
-					if (currentDistance > maxDistance) {
-						maxDistance = currentDistance;
-					}
+
+					//change height depending on distance from closest point
+					noiseHeight += CosineInterpolate(0f, 1f, minDistance / maxDistance) * amplitude;
+
+					//clamp the height where voronoi will appear
+					noiseHeight = Mathf.Max(0, noiseHeight - voronoiMinHeight);
+
+					//updating frequency and amplitude for next octave
+					amplitude *= voronoiPersistance;
 				}
-
-				//change height depending on distance from closest point
-
-				float noiseHeight = CosineInterpolate(0, 1, minDistance / maxDistance);
-
+				noiseHeight *= voronoiScale;
 				if (noiseHeight > maxValue)
 					maxValue = noiseHeight;
 				else if (noiseHeight < minValue)
 					minValue = noiseHeight;
 
-				map[x, z] = voronoiScale * noiseHeight;
+				map[x, z] = noiseHeight;
 			}
 		}
 
 		//normalizing values to be between 0-1
-		for (int z = 0; z < mapSize + 1; ++z) {
-			for (int x = 0; x < mapSize + 1; ++x) {
-				map[x, z] = Mathf.InverseLerp(minValue, maxValue, map[x, z]);
-			}
-		}
+		map = NormalizeMap(map, minValue, maxValue);
 
+		//wait for access to resources
 		return map;
 	}
 
