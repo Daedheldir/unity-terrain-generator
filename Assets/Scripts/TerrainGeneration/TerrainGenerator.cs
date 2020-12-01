@@ -33,12 +33,18 @@ public class TerrainGenerator : MonoBehaviour
 	public float voronoiScale = 1f;
 	public float voronoiWeight = 1f;
 
-	public float voronoiMaskScale = 1f;
-	public float voronoiMaskWeight = 1f;
+	[Range(0f, 1f)]
+	public float voronoiMaskScale = 0.1f;
 
-	private Mesh mesh;
-	private Vector3[] vertices;
-	private int[] triangles;
+	public float voronoiMaskWeight = 1f;
+	public int voronoiOctaves = 3;
+	public float voronoiPersistance = 0.5f;
+
+	[Range(0.1f, 2f)]
+	public float voronoiSmoothing = 0.5f;
+
+	private Texture2D texture;
+	private Terrain terrain;
 
 	private GenerationMethod generationMethod;
 
@@ -50,8 +56,8 @@ public class TerrainGenerator : MonoBehaviour
 	private void OnValidate() {
 		if (mapSize < 1)
 			mapSize = 1;
-		else if (mapSize > 255)
-			mapSize = 255;
+		else if (mapSize > 512)
+			mapSize = 512;
 
 		if (mapCellSize <= 0)
 			mapCellSize = 0.0001f;
@@ -67,14 +73,21 @@ public class TerrainGenerator : MonoBehaviour
 
 		if (noiseScale <= 0)
 			noiseScale = 0.0001f;
+
+		if (voronoiSmoothing <= 0f)
+			voronoiSmoothing = 0.1f;
+		if (voronoiSmoothing > 2f)
+			voronoiSmoothing = 2f;
+
+		if (voronoiPersistance <= -3f)
+			voronoiPersistance = -3f;
+		if (voronoiPersistance > 3f)
+			voronoiPersistance = 3f;
 	}
 
 	public void GenerateMap() {
-		mesh = GetComponent<MeshFilter>().sharedMesh;
-		if (mesh == null) {
-			mesh = new Mesh();
-			GetComponent<MeshFilter>().sharedMesh = mesh;
-		}
+		terrain = GetComponent<Terrain>();
+
 		switch (methodType) {
 			case GenerationMethodType.SpatialSubdivision: {
 				generationMethod = new SpatialSubdivision(mapSize, seed, mapCellSize, mapSmoothness);
@@ -83,7 +96,7 @@ public class TerrainGenerator : MonoBehaviour
 			case GenerationMethodType.PerlinVoronoiHybrid: {
 				generationMethod = new PerlinVoronoiHybrid(mapSize, seed, mapCellSize,
 					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
-					voronoiPoints, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight);
+					voronoiPoints, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight, voronoiOctaves, voronoiPersistance, voronoiSmoothing);
 				break;
 			}
 		}
@@ -92,41 +105,32 @@ public class TerrainGenerator : MonoBehaviour
 		}
 		var temp = Time.realtimeSinceStartup;
 
-		CreateMesh(generationMethod.CreateHeightMap());
+		//CreateMesh(generationMethod.CreateHeightMap());
+		float[,] heightMap = generationMethod.CreateHeightMap();
+		//texture = CreateTexture(heightMap);
+		TerrainData tData = new TerrainData();
+		tData.heightmapResolution = mapSize + 1;
+		tData.size = new Vector3(mapSize, mapHeightMultiplier, mapSize);
+		tData.SetHeights(0, 0, heightMap);
+		terrain.terrainData = tData;
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
-	public void CreateMesh(float[,] heightMap) {
-		vertices = new Vector3[(mapSize + 1) * (mapSize + 1)];
-		Vector2[] uv = new Vector2[(mapSize + 1) * (mapSize + 1)];
+	public Texture2D CreateTexture(float[,] heightMap) {
+		int mapWidth = heightMap.GetLength(0);
+		int mapHeight = heightMap.GetLength(1);
 
-		for (int i = 0, z = 0; z <= mapSize; z++) {
-			for (int x = 0; x <= mapSize; x++, i++) {
-				vertices[i] = new Vector3(x * mapCellSize, heightMap[x, z] * mapHeightMultiplier, z * mapCellSize);
-				uv[i] = new Vector2(x, z);
+		Color[] pixelColors = new Color[mapWidth * mapHeight];
+
+		for (int y = 0; y < mapWidth; ++y) {
+			for (int x = 0; x < mapHeight; ++x) {
+				pixelColors[y * mapWidth + x] = new Color(heightMap[x, y], heightMap[x, y], heightMap[x, y]);
 			}
 		}
 
-		triangles = new int[6 * mapSize * mapSize];
+		Texture2D texture = new Texture2D(mapWidth, mapHeight);
+		texture.SetPixels(pixelColors);
 
-		for (int ti = 0, vi = 0, z = 0; z < mapSize; z++, vi++) {
-			for (int x = 0; x < mapSize; x++, ti += 6, vi++) {
-				triangles[ti] = vi;
-				triangles[ti + 3] = triangles[ti + 2] = vi + 1;
-				triangles[ti + 4] = triangles[ti + 1] = vi + mapSize + 1;
-				triangles[ti + 5] = vi + mapSize + 2;
-			}
-		}
-
-		mesh.Clear();
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.uv = uv;
-		mesh.RecalculateNormals();
-		mesh.RecalculateTangents();
-	}
-
-	public void ClearMesh() {
-		mesh.Clear();
+		return texture;
 	}
 }

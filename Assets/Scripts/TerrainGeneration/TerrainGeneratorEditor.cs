@@ -18,8 +18,5 @@ public class TerrainGeneratorEditor : Editor
 		if (GUILayout.Button("Generate")) {
 			terrainGenerator.GenerateMap();
 		}
-		if (GUILayout.Button("Clear Mesh")) {
-			terrainGenerator.ClearMesh();
-		}
 	}
 }
