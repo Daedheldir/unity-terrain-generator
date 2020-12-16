@@ -10,7 +10,7 @@ public class ActorController : MonoBehaviour
 
 	// Start is called before the first frame update
 	private void Start() {
-		agent.Warp(new Vector3(12.47f, 13.67f, 8.662781f));
+		//agent.Warp(new Vector3(12.47f, 13.67f, 8.662781f));
 	}
 
 	// Update is called once per frame
