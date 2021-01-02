@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
 	public enum GenerationMethodType
@@ -14,9 +16,14 @@ public class TerrainGenerator : MonoBehaviour
 
 	public bool autoUpdateMap = false;
 	public int seed = 0;
-	public int mapSize = 64;
 	public float mapCellSize = 10;
 	public float mapHeightMultiplier = 10;
+
+	//LOD
+	public int chunkSize = 240;
+
+	[Range(0, 6)]
+	public int LOD;
 
 	//perlin data
 	[Range(1, 10)]
@@ -53,26 +60,30 @@ public class TerrainGenerator : MonoBehaviour
 	public GameObject terrainTilePrefab;
 
 	//private members
-	private List<GameObject> terrainTiles = new List<GameObject>();
-
 	private Mesh mesh;
 
+	private MeshFilter meshFilter;
 	private MeshCollider meshCollider;
-	private Vector3[] vertices;
-	private int[] triangles;
+
+	private List<GameObject> terrainTiles = new List<GameObject>();
 
 	private GenerationMethod generationMethod;
 
 	// Start is called before the first frame update
-	private void Start() {
+	private void Start()
+	{
+		meshFilter = GetComponent<MeshFilter>();
+		meshCollider = GetComponent<MeshCollider>();
+
 		GenerateMap();
 	}
 
-	private void OnValidate() {
-		if (mapSize < 1)
-			mapSize = 1;
-		else if (mapSize > 512)
-			mapSize = 512;
+	private void OnValidate()
+	{
+		if (chunkSize < 10)
+			chunkSize = 10;
+		else if (chunkSize > 240)
+			chunkSize = 240;
 
 		if (mapCellSize <= 0)
 			mapCellSize = 0.0001f;
@@ -105,16 +116,22 @@ public class TerrainGenerator : MonoBehaviour
 			voronoiPersistance = 3f;
 	}
 
-	public void GenerateMap() {
+	public void GenerateMap()
+	{
+		meshFilter = GetComponent<MeshFilter>();
+		meshCollider = GetComponent<MeshCollider>();
 
 		//choosing terrain generation method
-		switch (methodType) {
-			case GenerationMethodType.SpatialSubdivision: {
-				generationMethod = new SpatialSubdivision(mapSize, seed, mapSmoothness);
+		switch (methodType)
+		{
+			case GenerationMethodType.SpatialSubdivision:
+			{
+				generationMethod = new SpatialSubdivision(chunkSize, seed, mapSmoothness);
 				break;
 			}
-			case GenerationMethodType.PerlinVoronoiHybrid: {
-				generationMethod = new PerlinVoronoiHybrid(mapSize, seed,
+			case GenerationMethodType.PerlinVoronoiHybrid:
+			{
+				generationMethod = new PerlinVoronoiHybrid(chunkSize, seed,
 					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
 					voronoiPoints, voronoiMinHeight, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight, voronoiOctaves, voronoiPersistance, voronoiSmoothing);
 				break;
@@ -123,81 +140,58 @@ public class TerrainGenerator : MonoBehaviour
 		var temp = Time.realtimeSinceStartup;
 
 		//assigning components
-		if (!enableTiles) {
+		if (!enableTiles)
+		{
 			CreateMesh(generationMethod.CreateHeightMap());
-		} else {
+		}
+		else
+		{
 			CreateTiles(generationMethod.CreateHeightMap());
 		}
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
-	public void CreateMesh(float[,] heightMap) {
-		mesh = GetComponent<MeshFilter>().sharedMesh;
-		meshCollider = GetComponent<MeshCollider>();
-
-		//if there's no mesh create a new one
-		if (mesh == null) {
-			mesh = new Mesh();
-			GetComponent<MeshFilter>().sharedMesh = mesh;
-		}
-
+	public void CreateMesh(float[,] heightMap)
+	{
 		ClearMap();
 
-		vertices = new Vector3[(mapSize + 1) * (mapSize + 1)];
-		Vector2[] uv = new Vector2[(mapSize + 1) * (mapSize + 1)];
+		MeshData meshData = MeshGenerator.GenerateTerrainMesh(heightMap, mapHeightMultiplier, LOD);
+		mesh = meshData.CreateMesh();
 
-		for (int i = 0, z = 0; z <= mapSize; z++) {
-			for (int x = 0; x <= mapSize; x++, i++) {
-				vertices[i] = new Vector3(x, heightMap[x, z] * mapHeightMultiplier, z);
-				uv[i] = new Vector2(((float)x) / ((float)mapSize), ((float)z) / ((float)mapSize));
-			}
-		}
-
-		triangles = new int[6 * mapSize * mapSize];
-
-		for (int ti = 0, vi = 0, z = 0; z < mapSize; z++, vi++) {
-			for (int x = 0; x < mapSize; x++, ti += 6, vi++) {
-				triangles[ti] = vi;
-				triangles[ti + 3] = triangles[ti + 2] = vi + 1;
-				triangles[ti + 4] = triangles[ti + 1] = vi + mapSize + 1;
-				triangles[ti + 5] = vi + mapSize + 2;
-			}
-		}
-		mesh.Clear();
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.uv = uv;
-		mesh.RecalculateNormals();
-		mesh.RecalculateTangents();
-		mesh.RecalculateBounds();
-
+		meshFilter.sharedMesh = mesh;
 		meshCollider.sharedMesh = mesh;
 	}
 
-	public void ClearMap() {
+	public void ClearMap()
+	{
 		if (mesh != null)
 			mesh.Clear();
 
 		//clear the tile map
-		if (terrainTiles != null) {
-			foreach (GameObject tile in terrainTiles) {
+		if (terrainTiles != null)
+		{
+			foreach (GameObject tile in terrainTiles)
+			{
 				GameObject.DestroyImmediate(tile);
 			}
 			terrainTiles.Clear();
 		}
 	}
 
-	public void CreateTiles(float[,] heightMap) {
+	public void CreateTiles(float[,] heightMap)
+	{
 		ClearMap();
 
-		for (int z = 0; z <= mapSize; z++) {
-			for (int x = 0; x <= mapSize; x++) {
+		for (int z = 0; z <= chunkSize; z++)
+		{
+			for (int x = 0; x <= chunkSize; x++)
+			{
 				Vector3 position = new Vector3(x * 5 * mapCellSize, (heightMap[x, z] * mapHeightMultiplier) * 5, z * 5 * mapCellSize);
 				string tileName = "Tile[" + x + "," + z + "]";
 
 				terrainTiles.Add(GameObject.Instantiate(terrainTilePrefab, position, Quaternion.Euler(0, 0, 0), this.transform));
-				terrainTiles[z * (mapSize + 1) + x].name = tileName;
-				terrainTiles[z * (mapSize + 1) + x].transform.localScale = new Vector3(mapCellSize, heightMap[x, z] * mapHeightMultiplier, mapCellSize);
+				terrainTiles[z * (chunkSize + 1) + x].name = tileName;
+				terrainTiles[z * (chunkSize + 1) + x].transform.localScale = new Vector3(mapCellSize, heightMap[x, z] * mapHeightMultiplier, mapCellSize);
 			}
 		}
 	}
