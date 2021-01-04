@@ -6,19 +6,25 @@ using UnityEditor;
 [CustomEditor(typeof(TerrainGenerator))]
 public class TerrainGeneratorEditor : Editor
 {
-	public override void OnInspectorGUI() {
+	public override void OnInspectorGUI()
+	{
 		TerrainGenerator terrainGenerator = (TerrainGenerator)target;
+		GUILayout.Label("Generation Settings");
 
-		if (DrawDefaultInspector()) {
-			if (terrainGenerator.autoUpdateMap) {
+		if (DrawDefaultInspector())
+		{
+			if (terrainGenerator.autoUpdateMap)
+			{
 				terrainGenerator.GenerateMap();
 			}
 		}
 
-		if (GUILayout.Button("Generate")) {
+		if (GUILayout.Button("Generate"))
+		{
 			terrainGenerator.GenerateMap();
 		}
-		if (GUILayout.Button("Clear Mesh")) {
+		if (GUILayout.Button("Clear Mesh"))
+		{
 			terrainGenerator.ClearMap();
 		}
 	}

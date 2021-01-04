@@ -6,13 +6,10 @@ using UnityEngine;
 [RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
-	public enum GenerationMethodType
-	{
-		SpatialSubdivision,
-		PerlinVoronoiHybrid
-	}
+	public IGenerationMethod[] generationMethods;
 
-	public GenerationMethodType methodType = GenerationMethodType.SpatialSubdivision;
+	[SerializeField]
+	public GenerationSettings[] generationSettings;
 
 	public bool autoUpdateMap = false;
 	public int seed = 0;
@@ -54,20 +51,11 @@ public class TerrainGenerator : MonoBehaviour
 	[Range(0.1f, 2f)]
 	public float voronoiSmoothing = 0.5f;
 
-	//terrain tiles data
-	public bool enableTiles;
-
-	public GameObject terrainTilePrefab;
-
 	//private members
 	private Mesh mesh;
 
 	private MeshFilter meshFilter;
 	private MeshCollider meshCollider;
-
-	private List<GameObject> terrainTiles = new List<GameObject>();
-
-	private GenerationMethod generationMethod;
 
 	// Start is called before the first frame update
 	private void Start()
@@ -82,7 +70,7 @@ public class TerrainGenerator : MonoBehaviour
 	{
 		if (chunkSize < 10)
 			chunkSize = 10;
-		else if (chunkSize > 240)
+		else if (chunkSize > 241)
 			chunkSize = 240;
 
 		if (mapCellSize <= 0)
@@ -118,36 +106,43 @@ public class TerrainGenerator : MonoBehaviour
 
 	public void GenerateMap()
 	{
+		var temp = Time.realtimeSinceStartup;
+
+		UpdateNoiseArray(generationSettings);
 		meshFilter = GetComponent<MeshFilter>();
 		meshCollider = GetComponent<MeshCollider>();
 
-		//choosing terrain generation method
-		switch (methodType)
-		{
-			case GenerationMethodType.SpatialSubdivision:
-			{
-				generationMethod = new SpatialSubdivision(chunkSize, seed, mapSmoothness);
-				break;
-			}
-			case GenerationMethodType.PerlinVoronoiHybrid:
-			{
-				generationMethod = new PerlinVoronoiHybrid(chunkSize, seed,
-					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
-					voronoiPoints, voronoiMinHeight, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight, voronoiOctaves, voronoiPersistance, voronoiSmoothing);
-				break;
-			}
-		}
-		var temp = Time.realtimeSinceStartup;
+		float[,] map = new float[chunkSize, chunkSize];
 
-		//assigning components
-		if (!enableTiles)
+		float minValue = float.MaxValue;
+		float maxValue = float.MinValue;
+
+		for (int i = 0; i < generationMethods.Length; ++i)
 		{
-			CreateMesh(generationMethod.CreateHeightMap());
+			float[,] tempMap = generationMethods[i].CreateHeightMap();
+
+			for (int z = 0; z < map.GetLength(0); ++z)
+			{ 
+				for (int x = 0; x < map.GetLength(1); ++x)
+				{
+					map[z, x] += tempMap[z, x];
+					if (map[z, x] > maxValue)
+						maxValue = map[z, x];
+					else if (map[z, x] < minValue)
+						minValue = map[z, x];
+				}
+			}
 		}
-		else
+		for (int z = 0; z < map.GetLength(0); ++z)
 		{
-			CreateTiles(generationMethod.CreateHeightMap());
+			for (int x = 0; x < map.GetLength(1); ++x)
+			{
+				map[z, x] *= mapHeightMultiplier;
+			}
 		}
+		CreateMesh(map);
+
+
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
@@ -166,33 +161,32 @@ public class TerrainGenerator : MonoBehaviour
 	{
 		if (mesh != null)
 			mesh.Clear();
-
-		//clear the tile map
-		if (terrainTiles != null)
-		{
-			foreach (GameObject tile in terrainTiles)
-			{
-				GameObject.DestroyImmediate(tile);
-			}
-			terrainTiles.Clear();
-		}
 	}
 
-	public void CreateTiles(float[,] heightMap)
+	public void UpdateNoiseArray(GenerationSettings[] generationSettings)
 	{
-		ClearMap();
+		generationMethods = new IGenerationMethod[generationSettings.Length];
 
-		for (int z = 0; z <= chunkSize; z++)
+		for (int i = 0; i < generationSettings.Length; ++i)
 		{
-			for (int x = 0; x <= chunkSize; x++)
-			{
-				Vector3 position = new Vector3(x * 5 * mapCellSize, (heightMap[x, z] * mapHeightMultiplier) * 5, z * 5 * mapCellSize);
-				string tileName = "Tile[" + x + "," + z + "]";
+			IGenerationMethod generationMethod = null;
 
-				terrainTiles.Add(GameObject.Instantiate(terrainTilePrefab, position, Quaternion.Euler(0, 0, 0), this.transform));
-				terrainTiles[z * (chunkSize + 1) + x].name = tileName;
-				terrainTiles[z * (chunkSize + 1) + x].transform.localScale = new Vector3(mapCellSize, heightMap[x, z] * mapHeightMultiplier, mapCellSize);
+			switch (generationSettings[i].methodType)
+			{
+				case GenerationSettings.GenerationMethodType.SpatialSubdivision:
+					generationMethod = new SpatialSubdivision(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.PerlinNoise:
+					generationMethod = new PerlinNoise(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Voronoi:
+					generationMethod = new VoronoiDiagrams(generationSettings[i], seed);
+					break;
 			}
+
+			generationMethods[i] = generationMethod;
 		}
 	}
 }
