@@ -66,7 +66,7 @@ public class PerlinNoise : GenerationMethodBase, IGenerationMethod
 			noiseHeight += perlinValue * amplitude;
 
 			amplitude *= settings.persistance;
-			frequency *= settings.smoothing;
+			frequency /= settings.smoothing;
 		}
 
 		return noiseHeight;

@@ -7,7 +7,7 @@ using UnityEngine;
 public class TerrainGenerator : MonoBehaviour
 {
 	public IGenerationMethod[] generationMethods;
-
+	public bool useFirstHeightMapAsMask = true;
 	[SerializeField]
 	public GenerationSettings[] generationSettings;
 
@@ -62,7 +62,7 @@ public class TerrainGenerator : MonoBehaviour
 		meshCollider = GetComponent<MeshCollider>();
 
 		float[,] map = new float[chunkSize, chunkSize];
-
+		float[,] mask = null;
 		float minValue = float.MaxValue;
 		float maxValue = float.MinValue;
 
@@ -73,16 +73,24 @@ public class TerrainGenerator : MonoBehaviour
 				continue;
 
 			float[,] tempMap = generationMethods[i].CreateHeightMap();
-
+			if(i == 0 && useFirstHeightMapAsMask)
+			{
+				mask = tempMap;
+			}
 			for (int z = 0; z < map.GetLength(0); ++z)
 			{
 				for (int x = 0; x < map.GetLength(1); ++x)
 				{
-					map[z, x] += tempMap[z, x] * generationSettings[i].weight;
-					if (map[z, x] > maxValue)
-						maxValue = map[z, x];
-					else if (map[z, x] < minValue)
-						minValue = map[z, x];
+					map[x, z] += tempMap[z, x] * generationSettings[i].weight;
+
+					if (useFirstHeightMapAsMask)
+						map[x, z] *= mask[x, z];
+
+
+					if (map[x, z] > maxValue)
+						maxValue = map[x, z];
+					else if (map[x, z] < minValue)
+						minValue = map[x, z];
 				}
 			}
 		}
