@@ -4,7 +4,7 @@ using UnityEngine;
 
 public interface IGenerationMethod
 {
-	float EvaluateHeight(Vector3 point);
+	float EvaluateHeight(Vector2 point);
 
 	float[,] CreateHeightMap();
 }

@@ -3,34 +3,28 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class VoronoiDiagrams : IGenerationMethod
+public class VoronoiDiagrams : GenerationMethodBase, IGenerationMethod
 {
 	public int numberOfVoronoiPoints = 50;
 
-	private GenerationSettings settings;
-	private System.Random prng;
-
 	private List<List<Vector2>> points = new List<List<Vector2>>();
 
-	public VoronoiDiagrams(
-		GenerationSettings settings, int seed)
+	public VoronoiDiagrams(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
 	{
-		this.settings = settings;
 		this.numberOfVoronoiPoints = (int)settings.scale;
-		prng = new System.Random(seed);
 	}
 
 	public float[,] CreateHeightMap()
 	{
-		return CreateVoronoiGraph(new Vector3(0, 0, 0));
+		return CreateVoronoiGraph(new Vector2(generationOffset.x, generationOffset.y));
 	}
 
-	public float EvaluateHeight(Vector3 point)
+	public float EvaluateHeight(Vector2 point)
 	{
 		throw new System.NotImplementedException();
 	}
 
-	private float[,] CreateVoronoiGraph(Vector3 offset)
+	private float[,] CreateVoronoiGraph(Vector2 offset)
 	{
 		float[,] map = new float[settings.chunkSize, settings.chunkSize];
 
@@ -46,7 +40,12 @@ public class VoronoiDiagrams : IGenerationMethod
 			points.Add(new List<Vector2>());    //add a new octave points list
 			for (int i = 0; i < numberOfVoronoiPoints * frequency; ++i)
 			{
-				points[j].Add(new Vector2(prng.Next((int)offset.z, (int)(settings.chunkSize + offset.z)), prng.Next((int)offset.y, (int)(settings.chunkSize + offset.y))));
+				points[j].Add(
+					new Vector2(
+						prng.Next((int)offset.x, (int)(settings.chunkSize + offset.x)),
+						prng.Next((int)offset.y, (int)(settings.chunkSize + offset.y))
+						)
+					);
 			}
 
 			//after each octave, next octave should have more points so i has more details

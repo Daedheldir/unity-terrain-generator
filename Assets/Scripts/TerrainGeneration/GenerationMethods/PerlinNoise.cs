@@ -4,18 +4,10 @@ using System.Threading;
 using UnityEngine;
 
 [System.Serializable]
-public class PerlinNoise : IGenerationMethod
+public class PerlinNoise : GenerationMethodBase, IGenerationMethod
 {
-	private GenerationSettings settings;
-	private System.Random prng;
-
-	public PerlinNoise
-		(
-		GenerationSettings settings, int seed
-		)
+	public PerlinNoise(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
 	{
-		this.settings = settings;
-		prng = new System.Random(seed);
 	}
 
 	public float[,] CreateHeightMap()
@@ -26,8 +18,8 @@ public class PerlinNoise : IGenerationMethod
 
 		for (int i = 0; i < settings.octaves; ++i)
 		{
-			float offsetX = prng.Next(-100000, 100000);
-			float offsetZ = prng.Next(-100000, 100000);
+			float offsetX = generationOffset.x + prng.Next(-100000, 100000);
+			float offsetZ = generationOffset.y + prng.Next(-100000, 100000);
 			octaveOffsets[i] = new Vector2(offsetX, offsetZ);
 		}
 
@@ -40,23 +32,7 @@ public class PerlinNoise : IGenerationMethod
 		{
 			for (int x = 0; x < settings.chunkSize; ++x)
 			{
-				float amplitude = 1;
-				float frequency = 1;
-				float noiseHeight = 0;
-
-				for (int i = 0; i < settings.octaves; ++i)
-				{
-					float sampleZ = (z - halfZ) / settings.scale * frequency + octaveOffsets[i].y;
-					float sampleX = (x - halfX) / settings.scale * frequency + octaveOffsets[i].x;
-
-					float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ);
-
-					noiseHeight += perlinValue * amplitude;
-
-					amplitude *= settings.persistance;
-					frequency *= settings.smoothing;
-				}
-
+				float noiseHeight = EvaluateHeight(x, z, octaveOffsets);
 				if (noiseHeight > maxValue)
 					maxValue = noiseHeight;
 				else if (noiseHeight < minValue)
@@ -72,19 +48,20 @@ public class PerlinNoise : IGenerationMethod
 		return map;
 	}
 
-	public float EvaluateHeight(Vector3 point, Vector2[] octaveOffsets)
+	public float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets)
 	{
-
 		float amplitude = 1;
 		float frequency = 1;
 		float noiseHeight = 0;
 
+		Vector2 sample = new Vector2();
+
 		for (int i = 0; i < settings.octaves; ++i)
 		{
-			float sampleZ = (point.z) / settings.scale * frequency + octaveOffsets[i].y;
-			float sampleX = (point.x) / settings.scale * frequency + octaveOffsets[i].x;
+			sample.y = (point.y) / settings.scale * frequency + octaveOffsets[i].y;
+			sample.x = (point.x) / settings.scale * frequency + octaveOffsets[i].x;
 
-			float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ);
+			float perlinValue = EvaluateHeight(sample);
 
 			noiseHeight += perlinValue * amplitude;
 
@@ -95,31 +72,13 @@ public class PerlinNoise : IGenerationMethod
 		return noiseHeight;
 	}
 
-	public float EvaluateHeight(float x, float y, float z, Vector2[] octaveOffsets)
+	public float EvaluateHeight(float x, float z, Vector2[] octaveOffsets)
 	{
-
-		float amplitude = 1;
-		float frequency = 1;
-		float noiseHeight = 0;
-
-		for (int i = 0; i < settings.octaves; ++i)
-		{
-			float sampleZ = (z) / settings.scale * frequency + octaveOffsets[i].y;
-			float sampleX = (x) / settings.scale * frequency + octaveOffsets[i].x;
-
-			float perlinValue = Mathf.PerlinNoise(sampleX, sampleZ);
-
-			noiseHeight += perlinValue * amplitude;
-
-			amplitude *= settings.persistance;
-			frequency *= settings.smoothing;
-		}
-
-		return noiseHeight;
+		return EvaluateHeight(new Vector2(x, z), octaveOffsets);
 	}
 
-	public float EvaluateHeight(Vector3 point)
+	public float EvaluateHeight(Vector2 point)
 	{
-		throw new System.NotImplementedException();
+		return Mathf.PerlinNoise(point.x, point.y);
 	}
 }

@@ -19,37 +19,10 @@ public class TerrainGenerator : MonoBehaviour
 	//LOD
 	public int chunkSize = 240;
 
+	public Vector2 generationOffset = new Vector2(0, 0);
+
 	[Range(0, 6)]
 	public int LOD;
-
-	//perlin data
-	[Range(1, 10)]
-	public int octaves = 3;
-
-	[Range(0, 1)]
-	public float persistance = 0.5f;
-
-	public float mapSmoothness = 0.1f;
-	public float noiseScale = 1f;
-	public float perlinWeight = 1f;
-
-	//voronoi Data
-	public int voronoiPoints = 50;
-
-	public float voronoiMinHeight = 0.1f;
-
-	public float voronoiScale = 1f;
-	public float voronoiWeight = 1f;
-
-	[Range(0f, 1f)]
-	public float voronoiMaskScale = 0.1f;
-
-	public float voronoiMaskWeight = 1f;
-	public int voronoiOctaves = 3;
-	public float voronoiPersistance = 0.5f;
-
-	[Range(0.1f, 2f)]
-	public float voronoiSmoothing = 0.5f;
 
 	//private members
 	private Mesh mesh;
@@ -76,32 +49,8 @@ public class TerrainGenerator : MonoBehaviour
 		if (mapCellSize <= 0)
 			mapCellSize = 0.0001f;
 
-		if (octaves < 1)
-			octaves = 1;
-
 		if (mapHeightMultiplier <= 0)
 			mapHeightMultiplier = 0.0001f;
-
-		if (mapSmoothness < 1)
-			mapSmoothness = 1f;
-
-		if (noiseScale <= 0)
-			noiseScale = 0.0001f;
-
-		if (voronoiOctaves > 30f / voronoiPoints)
-			voronoiOctaves = Mathf.Min((int)((30f / voronoiPoints) > 1 ? (30f / voronoiPoints) : 1), 4);
-		if (voronoiOctaves <= 0)
-			voronoiOctaves = 1;
-
-		if (voronoiSmoothing <= 0f)
-			voronoiSmoothing = 0.1f;
-		if (voronoiSmoothing > 2f)
-			voronoiSmoothing = 2f;
-
-		if (voronoiPersistance <= -3f)
-			voronoiPersistance = -3f;
-		if (voronoiPersistance > 3f)
-			voronoiPersistance = 3f;
 	}
 
 	public void GenerateMap()
@@ -119,13 +68,17 @@ public class TerrainGenerator : MonoBehaviour
 
 		for (int i = 0; i < generationMethods.Length; ++i)
 		{
+			//if method isnt active skip it
+			if (!generationSettings[i].isActive)
+				continue;
+
 			float[,] tempMap = generationMethods[i].CreateHeightMap();
 
 			for (int z = 0; z < map.GetLength(0); ++z)
-			{ 
+			{
 				for (int x = 0; x < map.GetLength(1); ++x)
 				{
-					map[z, x] += tempMap[z, x];
+					map[z, x] += tempMap[z, x] * generationSettings[i].weight;
 					if (map[z, x] > maxValue)
 						maxValue = map[z, x];
 					else if (map[z, x] < minValue)
@@ -141,7 +94,6 @@ public class TerrainGenerator : MonoBehaviour
 			}
 		}
 		CreateMesh(map);
-
 
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
@@ -174,15 +126,19 @@ public class TerrainGenerator : MonoBehaviour
 			switch (generationSettings[i].methodType)
 			{
 				case GenerationSettings.GenerationMethodType.SpatialSubdivision:
-					generationMethod = new SpatialSubdivision(generationSettings[i], seed);
+					generationMethod = new SpatialSubdivision(generationSettings[i], generationOffset, seed);
 					break;
 
 				case GenerationSettings.GenerationMethodType.PerlinNoise:
-					generationMethod = new PerlinNoise(generationSettings[i], seed);
+					generationMethod = new PerlinNoise(generationSettings[i], generationOffset, seed);
 					break;
 
 				case GenerationSettings.GenerationMethodType.Voronoi:
-					generationMethod = new VoronoiDiagrams(generationSettings[i], seed);
+					generationMethod = new VoronoiDiagrams(generationSettings[i], generationOffset, seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Sine:
+					generationMethod = new Sine(generationSettings[i], generationOffset, seed);
 					break;
 			}
 

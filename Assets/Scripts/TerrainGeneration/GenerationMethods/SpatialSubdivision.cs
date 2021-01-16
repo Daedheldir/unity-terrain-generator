@@ -3,19 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class SpatialSubdivision : IGenerationMethod
+public class SpatialSubdivision : GenerationMethodBase, IGenerationMethod
 {
-	private GenerationSettings settings;
-	private System.Random prng;
-
 	private float minValue = float.MaxValue;
 	private float maxValue = float.MinValue;
 
-	public SpatialSubdivision(GenerationSettings settings, int seed)
+	public SpatialSubdivision(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
 	{
-		this.settings = settings;
-
-		prng = new System.Random(seed);
 	}
 
 	private float[,] genInputArr()
@@ -180,7 +174,7 @@ public class SpatialSubdivision : IGenerationMethod
 		return (dh.Math.NormalizeMap(genMap(genInputArr(), 0), minValue, maxValue));
 	}
 
-	public float EvaluateHeight(Vector3 point)
+	public float EvaluateHeight(Vector2 point)
 	{
 		throw new System.NotImplementedException();
 	}
