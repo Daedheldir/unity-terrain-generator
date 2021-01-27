@@ -9,6 +9,7 @@ public class GenerationSettings
 	{
 		SpatialSubdivision,
 		PerlinNoise,
+		RidgedPerlinNoise,
 		Voronoi,
 		Sine
 	}
@@ -23,7 +24,7 @@ public class GenerationSettings
 		this.persistance = persistance;
 		this.smoothing = smoothing;
 
-		this.chunkSize = chunkSize;
+		this.ChunkSize = chunkSize;
 	}
 
 	public bool isActive = true;
@@ -39,5 +40,7 @@ public class GenerationSettings
 	[Range(0.01f, 1)]
 	public float smoothing;
 
-	public int chunkSize = 241;
+	private int chunkSize = 241;
+
+	public int ChunkSize { get => chunkSize; set => chunkSize = value; }
 }

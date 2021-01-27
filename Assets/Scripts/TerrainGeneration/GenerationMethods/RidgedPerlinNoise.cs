@@ -4,9 +4,9 @@ using System.Threading;
 using UnityEngine;
 
 [System.Serializable]
-public class PerlinNoise : GenerationMethodBase
+public class RidgedPerlinNoise : GenerationMethodBase
 {
-	public PerlinNoise(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
+	public RidgedPerlinNoise(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
 	{
 	}
 
@@ -44,6 +44,6 @@ public class PerlinNoise : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		return Mathf.PerlinNoise(point.x, point.y);
+		return 1 - Mathf.Abs((2f * Mathf.PerlinNoise(point.x, point.y)) - 1f);
 	}
 }

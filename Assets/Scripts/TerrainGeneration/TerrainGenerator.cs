@@ -7,36 +7,37 @@ using UnityEngine;
 public class TerrainGenerator : MonoBehaviour
 {
 	public IGenerationMethod[] generationMethods;
-	public bool useFirstHeightMapAsMask = true;
+
 	[SerializeField]
 	public GenerationSettings[] generationSettings;
 
+	public bool useFirstHeightMapAsMask = true;
 	public bool autoUpdateMap = false;
 	public int seed = 0;
 	public float mapCellSize = 10;
 	public float mapHeightMultiplier = 10;
 
 	//LOD
-	public int chunkSize = 240;
+	public int chunkSize = 241;
 
 	public Vector2 generationOffset = new Vector2(0, 0);
 
 	[Range(0, 6)]
 	public int LOD;
 
-	//private members
 	private Mesh mesh;
 
 	private MeshFilter meshFilter;
 	private MeshCollider meshCollider;
 
+	public MeshCollider MeshCollider { get => meshCollider; set => meshCollider = value; }
+	public MeshFilter MeshFilter { get => meshFilter; set => meshFilter = value; }
+	public Mesh Mesh { get => mesh; set => mesh = value; }
+
 	// Start is called before the first frame update
 	private void Start()
 	{
-		meshFilter = GetComponent<MeshFilter>();
-		meshCollider = GetComponent<MeshCollider>();
-
-		GenerateMap();
+		//GenerateMap();
 	}
 
 	private void OnValidate()
@@ -44,7 +45,7 @@ public class TerrainGenerator : MonoBehaviour
 		if (chunkSize < 10)
 			chunkSize = 10;
 		else if (chunkSize > 241)
-			chunkSize = 240;
+			chunkSize = 241;
 
 		if (mapCellSize <= 0)
 			mapCellSize = 0.0001f;
@@ -53,18 +54,21 @@ public class TerrainGenerator : MonoBehaviour
 			mapHeightMultiplier = 0.0001f;
 	}
 
-	public void GenerateMap()
+	public TerrainData GenerateMapData()
 	{
 		var temp = Time.realtimeSinceStartup;
 
 		UpdateNoiseArray(generationSettings);
-		meshFilter = GetComponent<MeshFilter>();
-		meshCollider = GetComponent<MeshCollider>();
+		MeshFilter = GetComponent<MeshFilter>();
+		MeshCollider = GetComponent<MeshCollider>();
 
 		float[,] map = new float[chunkSize, chunkSize];
 		float[,] mask = null;
 		float minValue = float.MaxValue;
 		float maxValue = float.MinValue;
+
+		List<IGenerationMethod> activeGenerationMethods = new List<IGenerationMethod>();
+		List<GenerationSettings> activeGenerationSettings = new List<GenerationSettings>();
 
 		for (int i = 0; i < generationMethods.Length; ++i)
 		{
@@ -72,20 +76,25 @@ public class TerrainGenerator : MonoBehaviour
 			if (!generationSettings[i].isActive)
 				continue;
 
-			float[,] tempMap = generationMethods[i].CreateHeightMap();
-			if(i == 0 && useFirstHeightMapAsMask)
+			activeGenerationMethods.Add(generationMethods[i]);
+			activeGenerationSettings.Add(generationSettings[i])
+;
+		}
+
+		for (int i = 0; i < activeGenerationMethods.Count; ++i)
+		{
+			float[,] tempMap = activeGenerationMethods[i].CreateHeightMap();
+
+			if (i == 0 && useFirstHeightMapAsMask)
 			{
-				mask = tempMap;
+				mask = (float[,])tempMap.Clone();
 			}
+
 			for (int z = 0; z < map.GetLength(0); ++z)
 			{
 				for (int x = 0; x < map.GetLength(1); ++x)
 				{
-					map[x, z] += tempMap[z, x] * generationSettings[i].weight;
-
-					if (useFirstHeightMapAsMask)
-						map[x, z] *= mask[x, z];
-
+					map[x, z] += tempMap[x, z] * activeGenerationSettings[i].weight;
 
 					if (map[x, z] > maxValue)
 						maxValue = map[x, z];
@@ -98,12 +107,17 @@ public class TerrainGenerator : MonoBehaviour
 		{
 			for (int x = 0; x < map.GetLength(1); ++x)
 			{
-				map[z, x] *= mapHeightMultiplier;
+				if (useFirstHeightMapAsMask)
+					map[x, z] *= mask[x, z];
+
+				map[x, z] *= mapHeightMultiplier;
 			}
 		}
-		CreateMesh(map);
+		//CreateMesh(map);
 
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
+
+		return new TerrainData(map);
 	}
 
 	public void CreateMesh(float[,] heightMap)
@@ -111,16 +125,16 @@ public class TerrainGenerator : MonoBehaviour
 		ClearMap();
 
 		MeshData meshData = MeshGenerator.GenerateTerrainMesh(heightMap, mapHeightMultiplier, LOD);
-		mesh = meshData.CreateMesh();
+		Mesh = meshData.CreateMesh();
 
-		meshFilter.sharedMesh = mesh;
-		meshCollider.sharedMesh = mesh;
+		MeshFilter.mesh = Mesh;
+		MeshCollider.sharedMesh = Mesh;
 	}
 
 	public void ClearMap()
 	{
-		if (mesh != null)
-			mesh.Clear();
+		if (Mesh != null)
+			Mesh.Clear();
 	}
 
 	public void UpdateNoiseArray(GenerationSettings[] generationSettings)
@@ -129,6 +143,8 @@ public class TerrainGenerator : MonoBehaviour
 
 		for (int i = 0; i < generationSettings.Length; ++i)
 		{
+			generationSettings[i].ChunkSize = chunkSize;
+
 			IGenerationMethod generationMethod = null;
 
 			switch (generationSettings[i].methodType)
@@ -141,6 +157,10 @@ public class TerrainGenerator : MonoBehaviour
 					generationMethod = new PerlinNoise(generationSettings[i], generationOffset, seed);
 					break;
 
+				case GenerationSettings.GenerationMethodType.RidgedPerlinNoise:
+					generationMethod = new RidgedPerlinNoise(generationSettings[i], generationOffset, seed);
+					break;
+
 				case GenerationSettings.GenerationMethodType.Voronoi:
 					generationMethod = new VoronoiDiagrams(generationSettings[i], generationOffset, seed);
 					break;
@@ -151,6 +171,16 @@ public class TerrainGenerator : MonoBehaviour
 			}
 
 			generationMethods[i] = generationMethod;
+		}
+	}
+
+	public struct TerrainData
+	{
+		public float[,] heightMap;
+
+		public TerrainData(float[,] heightMap)
+		{
+			this.heightMap = heightMap;
 		}
 	}
 }

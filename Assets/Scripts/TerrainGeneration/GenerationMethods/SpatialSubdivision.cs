@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class SpatialSubdivision : GenerationMethodBase, IGenerationMethod
+public class SpatialSubdivision : GenerationMethodBase
 {
 	private float minValue = float.MaxValue;
 	private float maxValue = float.MinValue;
@@ -26,19 +26,6 @@ public class SpatialSubdivision : GenerationMethodBase, IGenerationMethod
 		return input;
 	}
 
-	private float[,] genNoiseMap()
-	{
-		float[,] noiseMap = new float[settings.chunkSize, settings.chunkSize];
-		for (int z = 0; z < settings.chunkSize; ++z)
-		{
-			for (int x = 0; x < settings.chunkSize; ++x)
-			{
-				noiseMap[z, x] = (float)prng.NextDouble();
-			}
-		}
-		return noiseMap;
-	}
-
 	private void UpdateMinMaxValues(float value)
 	{
 		if (value > maxValue)
@@ -49,7 +36,7 @@ public class SpatialSubdivision : GenerationMethodBase, IGenerationMethod
 
 	private float[,] genMap(float[,] previousMap, int step)
 	{
-		if (previousMap.Length >= (settings.chunkSize) * (settings.chunkSize))
+		if (previousMap.Length >= (settings.ChunkSize) * (settings.ChunkSize))
 		{
 			return previousMap;
 		}
@@ -169,12 +156,17 @@ public class SpatialSubdivision : GenerationMethodBase, IGenerationMethod
 		return average / 4f;
 	}
 
-	public float[,] CreateHeightMap()
+	public override float[,] CreateHeightMap()
 	{
 		return (dh.Math.NormalizeMap(genMap(genInputArr(), 0), minValue, maxValue));
 	}
 
-	public float EvaluateHeight(Vector2 point)
+	public override float EvaluateHeight(Vector2 point)
+	{
+		throw new System.NotImplementedException();
+	}
+
+	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
 	{
 		throw new System.NotImplementedException();
 	}

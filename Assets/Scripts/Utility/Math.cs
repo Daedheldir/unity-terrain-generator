@@ -23,6 +23,7 @@ namespace dh
 				for (int x = 0; x < inputMap.GetLength(0); ++x)
 				{
 					float value = Mathf.InverseLerp(minValue, maxValue, inputMap[x, z]);
+					Debug.Assert(value >= 0f && value <= 1f, "Value doesn't fit within bounds!");
 					map[x, z] = value;
 				}
 			}
