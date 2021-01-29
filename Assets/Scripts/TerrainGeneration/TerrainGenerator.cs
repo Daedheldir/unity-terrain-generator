@@ -1,204 +1,267 @@
-﻿using System.Collections;
+﻿using System;
+using System.Threading;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
-	public enum GenerationMethodType
-	{
-		SpatialSubdivision,
-		PerlinVoronoiHybrid
-	}
+	public Material terrainMaterial;
 
-	public GenerationMethodType methodType = GenerationMethodType.SpatialSubdivision;
+	public IGenerationMethod[] generationMethods;
 
+	[SerializeField]
+	public GenerationSettings[] generationSettings;
+
+	public bool useFirstHeightMapAsMask = true;
 	public bool autoUpdateMap = false;
 	public int seed = 0;
-	public int mapSize = 64;
-	public float mapCellSize = 10;
 	public float mapHeightMultiplier = 10;
 
-	//perlin data
-	[Range(1, 10)]
-	public int octaves = 3;
+	//LOD
+	public int chunkSize = 241;
 
-	[Range(0, 1)]
-	public float persistance = 0.5f;
+	public Vector2 generationOffset = new Vector2(0, 0);
 
-	public float mapSmoothness = 0.1f;
-	public float noiseScale = 1f;
-	public float perlinWeight = 1f;
+	[Range(0, 6)]
+	public int LOD;
 
-	//voronoi Data
-	public int voronoiPoints = 50;
+	private MeshFilter meshFilter;
 
-	public float voronoiMinHeight = 0.1f;
+	public MeshFilter MeshFilter { get => meshFilter; set => meshFilter = value; }
 
-	public float voronoiScale = 1f;
-	public float voronoiWeight = 1f;
+	//Threading
+	private Queue<ChunkThreadInfo<ChunkData>> chunkThreadInfosQueue = new Queue<ChunkThreadInfo<ChunkData>>();
 
-	[Range(0f, 1f)]
-	public float voronoiMaskScale = 0.1f;
-
-	public float voronoiMaskWeight = 1f;
-	public int voronoiOctaves = 3;
-	public float voronoiPersistance = 0.5f;
-
-	[Range(0.1f, 2f)]
-	public float voronoiSmoothing = 0.5f;
-
-	//terrain tiles data
-	public bool enableTiles;
-
-	public GameObject terrainTilePrefab;
-
-	//private members
-	private List<GameObject> terrainTiles = new List<GameObject>();
-
-	private Mesh mesh;
-
-	private MeshCollider meshCollider;
-	private Vector3[] vertices;
-	private int[] triangles;
-
-	private GenerationMethod generationMethod;
+	private Queue<ChunkThreadInfo<MeshData>> meshDataInfosQueue = new Queue<ChunkThreadInfo<MeshData>>();
 
 	// Start is called before the first frame update
-	private void Start() {
-		GenerateMap();
+	private void Start()
+	{
+		MeshFilter = GetComponent<MeshFilter>();
+		InitNoiseArray(generationSettings);
 	}
 
-	private void OnValidate() {
-		if (mapSize < 1)
-			mapSize = 1;
-		else if (mapSize > 512)
-			mapSize = 512;
+	private void Update()
+	{
+		if (chunkThreadInfosQueue.Count > 0)
+		{
+			lock (chunkThreadInfosQueue)
+			{
+				for (int i = 0; i < chunkThreadInfosQueue.Count; ++i)
+				{
+					ChunkThreadInfo<ChunkData> chunkThreadInfo = chunkThreadInfosQueue.Dequeue();
+					chunkThreadInfo.callback(chunkThreadInfo.parameter);
+				}
+			}
+		}
+		if (meshDataInfosQueue.Count > 0)
+		{
+			lock (meshDataInfosQueue)
+			{
+				for (int i = 0; i < meshDataInfosQueue.Count; ++i)
+				{
+					ChunkThreadInfo<MeshData> meshThreadInfo = meshDataInfosQueue.Dequeue();
+					meshThreadInfo.callback(meshThreadInfo.parameter);
+				}
+			}
+		}
+	}
 
-		if (mapCellSize <= 0)
-			mapCellSize = 0.0001f;
-
-		if (octaves < 1)
-			octaves = 1;
+	private void OnValidate()
+	{
+		if (chunkSize < 10)
+			chunkSize = 10;
+		else if (chunkSize > 241)
+			chunkSize = 241;
 
 		if (mapHeightMultiplier <= 0)
 			mapHeightMultiplier = 0.0001f;
-
-		if (mapSmoothness < 1)
-			mapSmoothness = 1f;
-
-		if (noiseScale <= 0)
-			noiseScale = 0.0001f;
-
-		if (voronoiOctaves > 30f / voronoiPoints)
-			voronoiOctaves = Mathf.Min((int)((30f / voronoiPoints) > 1 ? (30f / voronoiPoints) : 1), 4);
-		if (voronoiOctaves <= 0)
-			voronoiOctaves = 1;
-
-		if (voronoiSmoothing <= 0f)
-			voronoiSmoothing = 0.1f;
-		if (voronoiSmoothing > 2f)
-			voronoiSmoothing = 2f;
-
-		if (voronoiPersistance <= -3f)
-			voronoiPersistance = -3f;
-		if (voronoiPersistance > 3f)
-			voronoiPersistance = 3f;
 	}
 
-	public void GenerateMap() {
-
-		//choosing terrain generation method
-		switch (methodType) {
-			case GenerationMethodType.SpatialSubdivision: {
-				generationMethod = new SpatialSubdivision(mapSize, seed, mapSmoothness);
-				break;
-			}
-			case GenerationMethodType.PerlinVoronoiHybrid: {
-				generationMethod = new PerlinVoronoiHybrid(mapSize, seed,
-					noiseScale, perlinWeight, octaves, persistance, mapSmoothness,
-					voronoiPoints, voronoiMinHeight, voronoiScale, voronoiWeight, voronoiMaskScale, voronoiMaskWeight, voronoiOctaves, voronoiPersistance, voronoiSmoothing);
-				break;
-			}
-		}
+	public void GeneratePreviewMap()
+	{
 		var temp = Time.realtimeSinceStartup;
 
-		//assigning components
-		if (!enableTiles) {
-			CreateMesh(generationMethod.CreateHeightMap());
-		} else {
-			CreateTiles(generationMethod.CreateHeightMap());
-		}
+		InitNoiseArray(generationSettings);
+
+		MeshFilter = GetComponent<MeshFilter>();
+
+		ChunkDataThread(EditorOnChunkDataReceived, generationOffset);
+
+		Update();
+
 		Debug.Log("Terrain generation execution time = " + (Time.realtimeSinceStartup - temp).ToString());
 	}
 
-	public void CreateMesh(float[,] heightMap) {
-		mesh = GetComponent<MeshFilter>().sharedMesh;
-		meshCollider = GetComponent<MeshCollider>();
-
-		//if there's no mesh create a new one
-		if (mesh == null) {
-			mesh = new Mesh();
-			GetComponent<MeshFilter>().sharedMesh = mesh;
-		}
-
-		ClearMap();
-
-		vertices = new Vector3[(mapSize + 1) * (mapSize + 1)];
-		Vector2[] uv = new Vector2[(mapSize + 1) * (mapSize + 1)];
-
-		for (int i = 0, z = 0; z <= mapSize; z++) {
-			for (int x = 0; x <= mapSize; x++, i++) {
-				vertices[i] = new Vector3(x, heightMap[x, z] * mapHeightMultiplier, z);
-				uv[i] = new Vector2(((float)x) / ((float)mapSize), ((float)z) / ((float)mapSize));
-			}
-		}
-
-		triangles = new int[6 * mapSize * mapSize];
-
-		for (int ti = 0, vi = 0, z = 0; z < mapSize; z++, vi++) {
-			for (int x = 0; x < mapSize; x++, ti += 6, vi++) {
-				triangles[ti] = vi;
-				triangles[ti + 3] = triangles[ti + 2] = vi + 1;
-				triangles[ti + 4] = triangles[ti + 1] = vi + mapSize + 1;
-				triangles[ti + 5] = vi + mapSize + 2;
-			}
-		}
-		mesh.Clear();
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.uv = uv;
-		mesh.RecalculateNormals();
-		mesh.RecalculateTangents();
-		mesh.RecalculateBounds();
-
-		meshCollider.sharedMesh = mesh;
+	private void EditorOnChunkDataReceived(ChunkData chunkData)
+	{
+		MeshDataThread(EditorOnMeshDataReceived, chunkData);
 	}
 
-	public void ClearMap() {
-		if (mesh != null)
-			mesh.Clear();
+	private void EditorOnMeshDataReceived(MeshData meshData)
+	{
+		ClearMap();
 
-		//clear the tile map
-		if (terrainTiles != null) {
-			foreach (GameObject tile in terrainTiles) {
-				GameObject.DestroyImmediate(tile);
-			}
-			terrainTiles.Clear();
+		MeshFilter.sharedMesh = meshData.CreateMesh();
+	}
+
+	public void RequestChunkData(Action<ChunkData> callback, Vector2 offset)
+	{
+		ThreadPool.QueueUserWorkItem(delegate
+		{ ChunkDataThread(callback, offset); });
+	}
+
+	private void ChunkDataThread(Action<ChunkData> callback, Vector2 offset)
+	{
+		ChunkData chunkData = GenerateChunkData(offset);
+
+		//lock queue so no other threads access it
+		lock (chunkThreadInfosQueue)
+		{
+			chunkThreadInfosQueue.Enqueue(new ChunkThreadInfo<ChunkData>(callback, chunkData));
 		}
 	}
 
-	public void CreateTiles(float[,] heightMap) {
-		ClearMap();
+	public void RequestMeshData(Action<MeshData> callback, ChunkData chunkData)
+	{
+		ThreadPool.QueueUserWorkItem(delegate
+		{ MeshDataThread(callback, chunkData); });
+	}
 
-		for (int z = 0; z <= mapSize; z++) {
-			for (int x = 0; x <= mapSize; x++) {
-				Vector3 position = new Vector3(x * 5 * mapCellSize, (heightMap[x, z] * mapHeightMultiplier) * 5, z * 5 * mapCellSize);
-				string tileName = "Tile[" + x + "," + z + "]";
+	private void MeshDataThread(Action<MeshData> callback, ChunkData chunkData)
+	{
+		MeshData meshData = MeshGenerator.GenerateTerrainMesh(chunkData.heightMap, mapHeightMultiplier, LOD);
 
-				terrainTiles.Add(GameObject.Instantiate(terrainTilePrefab, position, Quaternion.Euler(0, 0, 0), this.transform));
-				terrainTiles[z * (mapSize + 1) + x].name = tileName;
-				terrainTiles[z * (mapSize + 1) + x].transform.localScale = new Vector3(mapCellSize, heightMap[x, z] * mapHeightMultiplier, mapCellSize);
+		//lock queue so no other threads access it
+		lock (meshDataInfosQueue)
+		{
+			meshDataInfosQueue.Enqueue(new ChunkThreadInfo<MeshData>(callback, meshData));
+		}
+	}
+
+	public ChunkData GenerateChunkData(Vector2 offset)
+	{
+		float[,] map = new float[chunkSize, chunkSize];
+		float[,] mask = null;
+		float minValue = float.MaxValue;
+		float maxValue = float.MinValue;
+
+		List<IGenerationMethod> activeGenerationMethods = new List<IGenerationMethod>();
+		List<GenerationSettings> activeGenerationSettings = new List<GenerationSettings>();
+
+		for (int i = 0; i < generationMethods.Length; ++i)
+		{
+			//if method isnt active skip it
+			if (!generationSettings[i].isActive)
+				continue;
+
+			activeGenerationMethods.Add(generationMethods[i]);
+			activeGenerationSettings.Add(generationSettings[i]);
+		}
+
+		for (int i = 0; i < activeGenerationMethods.Count; ++i)
+		{
+			float[,] tempMap = activeGenerationMethods[i].CreateHeightMap(offset * new Vector2(1, -1));
+
+			if (i == 0 && useFirstHeightMapAsMask)
+			{
+				mask = (float[,])tempMap.Clone();
+			}
+
+			for (int z = 0; z < map.GetLength(0); ++z)
+			{
+				for (int x = 0; x < map.GetLength(1); ++x)
+				{
+					map[x, z] += tempMap[x, z] * activeGenerationSettings[i].weight;
+
+					if (map[x, z] > maxValue)
+						maxValue = map[x, z];
+					else if (map[x, z] < minValue)
+						minValue = map[x, z];
+				}
 			}
 		}
+		for (int z = 0; z < map.GetLength(0); ++z)
+		{
+			for (int x = 0; x < map.GetLength(1); ++x)
+			{
+				if (useFirstHeightMapAsMask)
+					map[x, z] *= mask[x, z];
+
+				map[x, z] *= mapHeightMultiplier;
+			}
+		}
+
+		return new ChunkData(map);
+	}
+
+	public void ClearMap()
+	{
+		if (meshFilter != null)
+			if (meshFilter.sharedMesh == null)
+				meshFilter.sharedMesh = new Mesh();
+			else
+				meshFilter.sharedMesh.Clear();
+	}
+
+	public void InitNoiseArray(GenerationSettings[] generationSettings)
+	{
+		generationMethods = new IGenerationMethod[generationSettings.Length];
+
+		for (int i = 0; i < generationSettings.Length; ++i)
+		{
+			generationSettings[i].ChunkSize = chunkSize;
+			IGenerationMethod generationMethod = null;
+
+			switch (generationSettings[i].methodType)
+			{
+				case GenerationSettings.GenerationMethodType.SpatialSubdivision:
+					generationMethod = new SpatialSubdivision(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.PerlinNoise:
+					generationMethod = new PerlinNoise(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.RidgedPerlinNoise:
+					generationMethod = new RidgedPerlinNoise(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Voronoi:
+					generationMethod = new VoronoiDiagrams(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Sine:
+					generationMethod = new Sine(generationSettings[i], seed);
+					break;
+			}
+
+			generationMethods[i] = generationMethod;
+		}
+	}
+
+	private struct ChunkThreadInfo<T>
+	{
+		public readonly Action<T> callback;
+		public readonly T parameter;
+
+		public ChunkThreadInfo(Action<T> callback, T parameter)
+		{
+			this.callback = callback;
+			this.parameter = parameter;
+		}
+	}
+}
+
+public struct ChunkData
+{
+	public readonly float[,] heightMap;
+
+	public ChunkData(float[,] heightMap)
+	{
+		this.heightMap = heightMap;
 	}
 }

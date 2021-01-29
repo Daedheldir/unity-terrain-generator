@@ -2,20 +2,23 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SpatialSubdivision : GenerationMethod
+[System.Serializable]
+public class SpatialSubdivision : GenerationMethodBase
 {
-	public SpatialSubdivision(int mapSize, int seed, float smoothingFactor) {
-		this.mapSize = mapSize;
-		this.seed = seed;
-		this.smoothingFactor = smoothingFactor;
+	private float minValue = float.MaxValue;
+	private float maxValue = float.MinValue;
 
-		prng = new System.Random(seed);
+	public SpatialSubdivision(GenerationSettings settings, int seed) : base(settings, seed)
+	{
 	}
 
-	private float[,] genInputArr() {
+	private float[,] genInputArr()
+	{
 		float[,] input = new float[2, 2];
-		for (int z = 0; z < 2; ++z) {
-			for (int x = 0; x < 2; ++x) {
+		for (int z = 0; z < 2; ++z)
+		{
+			for (int x = 0; x < 2; ++x)
+			{
 				input[z, x] = prng.Next(-100000, 100000) / 200000;
 			}
 		}
@@ -23,35 +26,43 @@ public class SpatialSubdivision : GenerationMethod
 		return input;
 	}
 
-	private float[,] genNoiseMap() {
-		float[,] noiseMap = new float[mapSize, mapSize];
-		for (int z = 0; z < mapSize; ++z) {
-			for (int x = 0; x < mapSize; ++x) {
-				noiseMap[z, x] = (float)prng.NextDouble();
-			}
-		}
-		return noiseMap;
+	private void UpdateMinMaxValues(float value)
+	{
+		if (value > maxValue)
+			maxValue = value;
+		else if (value < minValue)
+			minValue = value;
 	}
 
-	private float[,] genMap(float[,] previousMap, int step) {
-		if (previousMap.Length >= (1 + mapSize) * (1 + mapSize)) {
+	private float[,] genMap(float[,] previousMap, int step)
+	{
+		if (previousMap.Length >= (settings.ChunkSize) * (settings.ChunkSize))
+		{
 			return previousMap;
 		}
 
 		//divide each tile in two <=> create new map two times bigger
 		float[,] newMap = new float[previousMap.GetLength(0) * 2, previousMap.GetLength(1) * 2];
 
-		for (int z = 0; z < previousMap.GetLength(0); ++z) {
-			for (int x = 0; x < previousMap.GetLength(1); ++x) {
+		for (int z = 0; z < previousMap.GetLength(0); ++z)
+		{
+			for (int x = 0; x < previousMap.GetLength(1); ++x)
+			{
 				newMap[z * 2, x * 2] = previousMap[z, x];
 			}
 		}
 		int loopCounter = 0;
 
 		//find values for empty points diagonally
-		for (int z = 1; z < newMap.GetLength(0); z += 2) {
-			for (int x = 1; x < newMap.GetLength(1); x += 2) {
-				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.1f), (smoothingFactor) / (step + 0.1f));
+		for (int z = 1; z < newMap.GetLength(0); z += 2)
+		{
+			for (int x = 1; x < newMap.GetLength(1); x += 2)
+			{
+				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-settings.smoothing) / (step + 0.1f), (settings.smoothing) / (step + 0.1f));
+
+				//update min and max values
+				UpdateMinMaxValues(newMap[z, x]);
+
 				loopCounter++;
 			}
 		}
@@ -59,9 +70,15 @@ public class SpatialSubdivision : GenerationMethod
 		loopCounter = 0;
 
 		//find values for empty points orthogonally
-		for (int z = 0; z < newMap.GetLength(0); ++z) {
-			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2) {
-				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-smoothingFactor) / (step + 0.1f), (smoothingFactor) / (step + 0.1f));
+		for (int z = 0; z < newMap.GetLength(0); ++z)
+		{
+			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2)
+			{
+				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-settings.smoothing) / (step + 0.1f), (settings.smoothing) / (step + 0.1f));
+
+				//update min and max values
+				UpdateMinMaxValues(newMap[z, x]);
+
 				loopCounter++;
 			}
 		}
@@ -70,8 +87,8 @@ public class SpatialSubdivision : GenerationMethod
 		return genMap(newMap, step + 1);
 	}
 
-	private float averageOrthogonal(float[,] map, int z, int x) {
-
+	private float averageOrthogonal(float[,] map, int z, int x)
+	{
 		//create average of nearby points
 		float average = 0;
 
@@ -102,15 +119,16 @@ public class SpatialSubdivision : GenerationMethod
 		return average / 4f;
 	}
 
-	private float averageDiagonal(float[,] map, int y, int x) {
-
+	private float averageDiagonal(float[,] map, int z, int x)
+	{
 		//create average of nearby points
 		float average = 0;
 
-		average += map[y - 1, x - 1];
+		average += map[z - 1, x - 1];
 
 		//y overflow handling
-		if (y + 1 >= map.GetLength(0)) {
+		if (z + 1 >= map.GetLength(0))
+		{
 			average += map[0, x - 1];
 
 			//x overflow handling
@@ -118,45 +136,38 @@ public class SpatialSubdivision : GenerationMethod
 				average += map[0, 0];
 			else
 				average += map[0, x + 1];
-		} else {
-			average += map[y + 1, x - 1];
+		}
+		else
+		{
+			average += map[z + 1, x - 1];
 
 			//x overflow handling
 			if (x + 1 >= map.GetLength(1))
-				average += map[y + 1, 0];
+				average += map[z + 1, 0];
 			else
-				average += map[y + 1, x + 1];
+				average += map[z + 1, x + 1];
 		}
 
 		if (x + 1 >= map.GetLength(1))
-			average += map[y - 1, 0];
+			average += map[z - 1, 0];
 		else
-			average += map[y - 1, x + 1];
+			average += map[z - 1, x + 1];
 
 		return average / 4f;
 	}
 
-	private float[,] normalizeMap(float[,] map) {
-		float maxVal = float.MinValue;
-		float minVal = float.MaxValue;
-
-		foreach (float val in map) {
-			if (val > maxVal)
-				maxVal = val;
-			else if (val < minVal)
-				minVal = val;
-		}
-
-		for (int z = 0; z < map.GetLength(0); ++z) {
-			for (int x = 0; x < map.GetLength(1); ++x) {
-				map[z, x] = (map[z, x] - minVal);
-			}
-		}
-
-		return map;
+	public override float[,] CreateHeightMap(Vector2 generationOffset)
+	{
+		return (dh.Math.NormalizeMap(genMap(genInputArr(), 0), minValue, maxValue));
 	}
 
-	public override float[,] CreateHeightMap() {
-		return (genMap(genInputArr(), 0));
+	public override float EvaluateHeight(Vector2 point)
+	{
+		throw new System.NotImplementedException();
+	}
+
+	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
+	{
+		throw new System.NotImplementedException();
 	}
 }
