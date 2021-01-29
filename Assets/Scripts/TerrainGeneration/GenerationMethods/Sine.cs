@@ -4,14 +4,13 @@ using UnityEngine;
 
 public class Sine : GenerationMethodBase
 {
-	public Sine(GenerationSettings generationSettings, Vector2 generationOffset, int seed) : base(generationSettings, generationOffset, seed)
+	public Sine(GenerationSettings generationSettings, int seed) : base(generationSettings, seed)
 	{
 	}
 
 	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
 	{
-		Vector2 sample = new Vector2();
-		float halfChunkSize = settings.ChunkSize / 2f;
+		Vector2 sample;
 
 		//if starting index is 0 use frequency of 1
 		float amplitude = (startingIndex > 0) ? (1 * (settings.persistance * startingIndex)) : 1;
@@ -21,8 +20,7 @@ public class Sine : GenerationMethodBase
 
 		for (int i = startingIndex; i < endingIndex; ++i)
 		{
-			sample.y = ((point.y - halfChunkSize) / settings.scale) * frequency + octaveOffsets[i].y;
-			sample.x = ((point.x - halfChunkSize) / settings.scale) * frequency + octaveOffsets[i].x;
+			sample = EvaluateSamplePoint(point.x, point.y, octaveOffsets[i], frequency);
 
 			float val = EvaluateHeight(sample);
 

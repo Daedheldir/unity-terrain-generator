@@ -12,7 +12,7 @@ public static class MeshGenerator
 
 		//LOD
 		int meshIncrement = (LOD == 0) ? 1 : (LOD * 2);
-		int verticesPerLine = (width - 1) / meshIncrement + 1;
+		int verticesPerLine = ((width - 1) / meshIncrement) + 1;
 
 		//Mesh data
 		MeshData meshData = new MeshData(width, height);
@@ -20,13 +20,14 @@ public static class MeshGenerator
 
 		//offset to put map in the center
 		float mapTopLeftX = (width - 1) / -2f;
+		float mapTopLeftZ = (height - 1) / 2f;
 
 		for (int z = 0; z < height; z += meshIncrement)
 		{
 			for (int x = 0; x < width; x += meshIncrement)
 			{
-				meshData.vertices[vertexIndex] = new Vector3(mapTopLeftX + x, heightMap[x, z] * heightMultiplier, z);
-				meshData.uvs[vertexIndex] = new Vector2(((float)x) / ((float)width), ((float)z) / ((float)height));
+				meshData.vertices[vertexIndex] = new Vector3((mapTopLeftX + x), heightMap[x, z] * heightMultiplier, (mapTopLeftZ - z));
+				meshData.uvs[vertexIndex] = new Vector2(x / (float)width, z / (float)height);
 				if (x < width - 1 && z < height - 1)
 				{
 					meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + verticesPerLine);
@@ -57,9 +58,9 @@ public class MeshData
 
 	public void AddTriangle(int a, int b, int c)
 	{
-		triangles[triangleIndex] = c;
+		triangles[triangleIndex] = a;
 		triangles[triangleIndex + 1] = b;
-		triangles[triangleIndex + 2] = a;
+		triangles[triangleIndex + 2] = c;
 
 		triangleIndex += 3;
 	}
@@ -67,6 +68,7 @@ public class MeshData
 	public Mesh CreateMesh()
 	{
 		Mesh mesh = new Mesh();
+
 		mesh.vertices = vertices;
 		mesh.triangles = triangles;
 		mesh.uv = uvs;

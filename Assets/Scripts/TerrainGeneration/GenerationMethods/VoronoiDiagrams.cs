@@ -7,14 +7,14 @@ public class VoronoiDiagrams : GenerationMethodBase
 {
 	public int numberOfVoronoiPoints = 50;
 
-	public VoronoiDiagrams(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
+	public VoronoiDiagrams(GenerationSettings settings, int seed) : base(settings, seed)
 	{
 		this.numberOfVoronoiPoints = (int)(settings.scale > 25 ? 25 : settings.scale);
 	}
 
 	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
 	{
-		Vector2 sample = new Vector2();
+		Vector2 sample;
 
 		float noiseHeight = 0f;
 
@@ -49,8 +49,7 @@ public class VoronoiDiagrams : GenerationMethodBase
 		//iterate through all octaves
 		for (int j = startingIndex; j < endingIndex; ++j)
 		{
-			sample.y = ((point.y - halfChunkSize) / settings.scale) * frequency + octaveOffsets[j].y;
-			sample.x = ((point.x - halfChunkSize) / settings.scale) * frequency + octaveOffsets[j].x;
+			sample = EvaluateSamplePoint(point.x, point.y, octaveOffsets[j], frequency);
 
 			float minDistance = float.MaxValue;
 			float maxDistance = float.MinValue;

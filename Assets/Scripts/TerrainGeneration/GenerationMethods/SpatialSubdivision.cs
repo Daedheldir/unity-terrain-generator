@@ -8,7 +8,7 @@ public class SpatialSubdivision : GenerationMethodBase
 	private float minValue = float.MaxValue;
 	private float maxValue = float.MinValue;
 
-	public SpatialSubdivision(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
+	public SpatialSubdivision(GenerationSettings settings, int seed) : base(settings, seed)
 	{
 	}
 
@@ -156,7 +156,7 @@ public class SpatialSubdivision : GenerationMethodBase
 		return average / 4f;
 	}
 
-	public override float[,] CreateHeightMap()
+	public override float[,] CreateHeightMap(Vector2 generationOffset)
 	{
 		return (dh.Math.NormalizeMap(genMap(genInputArr(), 0), minValue, maxValue));
 	}

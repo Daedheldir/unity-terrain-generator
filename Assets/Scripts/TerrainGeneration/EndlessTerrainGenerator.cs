@@ -4,7 +4,9 @@ using UnityEngine;
 
 public class EndlessTerrainGenerator : MonoBehaviour
 {
-	public const float maxViewDist = 500;
+	public const float maxViewDist = 2000;
+	public const float editorMaxViewDist = 1000;
+
 	public Transform viewer;
 
 	public static Vector2 viewerPosition;
@@ -14,33 +16,64 @@ public class EndlessTerrainGenerator : MonoBehaviour
 	private Dictionary<Vector2, TerrainChunk> terrainChunkDict = new Dictionary<Vector2, TerrainChunk>();
 	private List<TerrainChunk> terrainChunksVisibleLastUpdate = new List<TerrainChunk>();
 
+	private static TerrainGenerator terrainGenerator;
+
+	public static TerrainGenerator TerrainGenerator
+	{
+		get
+		{
+			if (terrainGenerator == null)
+				terrainGenerator = FindObjectOfType<TerrainGenerator>();
+			return terrainGenerator;
+		}
+		set => terrainGenerator = value;
+	}
+
 	public class TerrainChunk
 	{
-		TerrainGenerator terrainGenerator;
 		private GameObject meshObject;
-		private MeshData meshData;
+		private MeshRenderer meshRenderer;
+		private MeshFilter meshFilter;
+
 		private Vector2 position;
 
 		private Bounds bounds;
 
 		public TerrainChunk(Vector2 coord, int size, Transform parent)
 		{
-			terrainGenerator = FindObjectOfType<TerrainGenerator>();
 			position = coord * size;
+
 			Vector3 position3D = new Vector3(position.x, 0, position.y);
 
-			terrainGenerator.generationOffset = position;
-
-
-			meshObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+			//creating gameobject
+			meshObject = new GameObject("Terrain Chunk [" + coord.x + ", " + coord.y + "]");
 			meshObject.transform.parent = parent;
-			meshObject.transform.position = position3D;
-			meshObject.transform.localScale = Vector3.one * size / 10f;
+			meshObject.transform.localScale = Vector3.one;
+			meshObject.transform.localPosition = position3D;
 
-			terrainGenerator.MeshFilter = meshObject.GetComponent<MeshFilter>();
-			terrainGenerator.Mesh = meshObject.GetComponent<MeshFilter>().mesh;
+			//creating boundary for check
+			bounds = new Bounds(meshObject.transform.position, Vector2.one * size);
 
-			terrainGenerator.GenerateMapData();
+			//adding components
+			meshFilter = meshObject.AddComponent<MeshFilter>();
+			meshRenderer = meshObject.AddComponent<MeshRenderer>();
+
+			//generate data for chunk
+			TerrainGenerator.RequestChunkData(OnChunkDataReceived, position);
+		}
+
+		private void OnChunkDataReceived(ChunkData chunkData)
+		{
+			TerrainGenerator.RequestMeshData(OnMeshDataReceived, chunkData);
+		}
+
+		private void OnMeshDataReceived(MeshData meshData)
+		{
+			//assing mesh data to mesh
+			meshFilter.mesh = meshData.CreateMesh();
+
+			//set material
+			meshRenderer.material = TerrainGenerator.terrainMaterial;
 		}
 
 		public void UpdateTerrainChunk()
@@ -64,7 +97,8 @@ public class EndlessTerrainGenerator : MonoBehaviour
 	// Start is called before the first frame update
 	private void Start()
 	{
-		chunkSize = 241 - 1;
+		TerrainGenerator = FindObjectOfType<TerrainGenerator>();
+		chunkSize = TerrainGenerator.chunkSize - 1;
 		visibleChunks = Mathf.RoundToInt(maxViewDist / chunkSize);
 	}
 
@@ -80,6 +114,7 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
 		int currentChunkCoordY = Mathf.RoundToInt(viewerPosition.y / chunkSize);
 
+		//hide all chunks that were visible
 		foreach (TerrainChunk terrainChunk in terrainChunksVisibleLastUpdate)
 		{
 			terrainChunk.SetVisible(false);

@@ -6,14 +6,13 @@ using UnityEngine;
 [System.Serializable]
 public class RidgedPerlinNoise : GenerationMethodBase
 {
-	public RidgedPerlinNoise(GenerationSettings settings, Vector2 generationOffset, int seed) : base(settings, generationOffset, seed)
+	public RidgedPerlinNoise(GenerationSettings settings, int seed) : base(settings, seed)
 	{
 	}
 
 	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
 	{
-		Vector2 sample = new Vector2();
-		float halfChunkSize = settings.ChunkSize / 2f;
+		Vector2 sample;
 
 		//if starting index is 0 use frequency of 1
 		float amplitude = (startingIndex > 0) ? (1 * (settings.persistance * startingIndex)) : 1;
@@ -22,8 +21,7 @@ public class RidgedPerlinNoise : GenerationMethodBase
 
 		for (int i = startingIndex; i < endingIndex; ++i)
 		{
-			sample.y = ((point.y - halfChunkSize) / settings.scale) * frequency + octaveOffsets[i].y;
-			sample.x = ((point.x - halfChunkSize) / settings.scale) * frequency + octaveOffsets[i].x;
+			sample = EvaluateSamplePoint(point.x, point.y, octaveOffsets[i], frequency);
 
 			float perlinValue = EvaluateHeight(sample);
 

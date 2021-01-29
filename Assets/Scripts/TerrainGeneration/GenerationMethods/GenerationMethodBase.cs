@@ -6,28 +6,33 @@ public abstract class GenerationMethodBase : IGenerationMethod
 {
 	protected GenerationSettings settings;
 	protected System.Random prng;
-	protected Vector2 generationOffset;
+	private Vector2[] randomOffsets;
 
-	protected GenerationMethodBase(GenerationSettings settings, Vector2 generationOffset, int seed)
+	protected GenerationMethodBase(GenerationSettings settings, int seed)
 	{
 		this.settings = settings;
-		this.generationOffset = generationOffset;
 		prng = new System.Random(seed);
+		//creating octave offsets
+		randomOffsets = new Vector2[settings.octaves];
+
+		for (int i = 0; i < settings.octaves; ++i)
+		{
+			float offsetX = prng.Next(-100000, 100000);
+			float offsetZ = prng.Next(-100000, 100000);
+			randomOffsets[i] = new Vector2(offsetX, offsetZ);
+		}
 	}
 
-	public virtual float[,] CreateHeightMap()
+	public virtual float[,] CreateHeightMap(Vector2 generationOffset)
 	{
-		float[,] map = new float[settings.ChunkSize, settings.ChunkSize];
-		float[,] mask = new float[settings.ChunkSize, settings.ChunkSize];
-
-		//creating octave offsets
 		Vector2[] octaveOffsets = new Vector2[settings.octaves];
 		for (int i = 0; i < settings.octaves; ++i)
 		{
-			float offsetX = generationOffset.x + prng.Next(-100000, 100000);
-			float offsetZ = generationOffset.y + prng.Next(-100000, 100000);
-			octaveOffsets[i] = new Vector2(offsetX, offsetZ);
+			octaveOffsets[i] = randomOffsets[i] + generationOffset;
 		}
+
+		float[,] map = new float[settings.ChunkSize, settings.ChunkSize];
+		float[,] mask = new float[settings.ChunkSize, settings.ChunkSize];
 
 		float maxValue = float.MinValue;
 		float minValue = float.MaxValue;
@@ -60,10 +65,19 @@ public abstract class GenerationMethodBase : IGenerationMethod
 		}
 
 		//normalizing values to be between 0-1
-		map = dh.Math.NormalizeMap(map, minValue, maxValue);
+		//map = dh.Math.NormalizeMap(map, minValue, maxValue);
 
 		//wait for access to resources
 		return map;
+	}
+
+	protected Vector2 EvaluateSamplePoint(float x, float z, Vector2 octaveOffset, float frequency)
+	{
+		Vector2 sample = new Vector2();
+		sample.y = ((z + octaveOffset.y - settings.ChunkSize / 2f) / settings.scale) * frequency;
+		sample.x = ((x + octaveOffset.x - settings.ChunkSize / 2f) / settings.scale) * frequency;
+
+		return sample;
 	}
 
 	public abstract float EvaluateHeight(Vector2 point);
