@@ -9,6 +9,7 @@ using UnityEngine;
 public class TerrainGenerator : MonoBehaviour
 {
 	public Material terrainMaterial;
+	public Material seaMaterial;
 
 	public IGenerationMethod[] generationMethods;
 
@@ -19,6 +20,7 @@ public class TerrainGenerator : MonoBehaviour
 	public bool autoUpdateMap = false;
 	public int seed = 0;
 	public float mapHeightMultiplier = 10;
+	public float seaLevel = 1f;
 
 	//LOD
 	public int chunkSize = 241;

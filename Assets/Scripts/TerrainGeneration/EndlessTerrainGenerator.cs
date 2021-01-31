@@ -1,15 +1,13 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class EndlessTerrainGenerator : MonoBehaviour
 {
-	public const float maxViewDist = 2000;
-	public const float editorMaxViewDist = 1000;
+	public const float maxViewDist = 3000;
 
 	public Transform viewer;
 
-	public static Vector2 viewerPosition;
+	public static Vector3 viewerPosition;
 	private int chunkSize;
 	private int visibleChunks;
 
@@ -35,6 +33,8 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		private MeshRenderer meshRenderer;
 		private MeshFilter meshFilter;
 
+		private GameObject waterPlane;
+
 		private Vector2 position;
 
 		private Bounds bounds;
@@ -47,12 +47,25 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 			//creating gameobject
 			meshObject = new GameObject("Terrain Chunk [" + coord.x + ", " + coord.y + "]");
+
+			//creating waterPlane
+			waterPlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
+
+			waterPlane.GetComponent<MeshRenderer>().material = TerrainGenerator.seaMaterial;
+			waterPlane.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+			waterPlane.transform.parent = meshObject.transform;
+			waterPlane.transform.localPosition = new Vector3(0, TerrainGenerator.seaLevel, 0);
+			waterPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
+			waterPlane.transform.localScale = new Vector3(size, size, 1f);
+
+			//positioning chunk
 			meshObject.transform.parent = parent;
 			meshObject.transform.localScale = Vector3.one;
 			meshObject.transform.localPosition = position3D;
 
 			//creating boundary for check
-			bounds = new Bounds(meshObject.transform.position, Vector2.one * size);
+			bounds = new Bounds(position3D, new Vector3(size, 0, size));
 
 			//adding components
 			meshFilter = meshObject.AddComponent<MeshFilter>();
@@ -79,6 +92,7 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		public void UpdateTerrainChunk()
 		{
 			float viewerDstToEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
+
 			bool isVisible = viewerDstToEdge <= maxViewDist;
 			SetVisible(isVisible);
 		}
@@ -105,14 +119,14 @@ public class EndlessTerrainGenerator : MonoBehaviour
 	// Update is called once per frame
 	private void Update()
 	{
-		viewerPosition = new Vector2(viewer.position.x, viewer.position.z);
+		viewerPosition = viewer.position;
 		UpdateVisibleChunks();
 	}
 
 	private void UpdateVisibleChunks()
 	{
 		int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
-		int currentChunkCoordY = Mathf.RoundToInt(viewerPosition.y / chunkSize);
+		int currentChunkCoordZ = Mathf.RoundToInt(viewerPosition.z / chunkSize);
 
 		//hide all chunks that were visible
 		foreach (TerrainChunk terrainChunk in terrainChunksVisibleLastUpdate)
@@ -124,7 +138,7 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		{
 			for (int xOffset = -visibleChunks; xOffset <= visibleChunks; ++xOffset)
 			{
-				Vector2 viewedChunkCoord = new Vector2(currentChunkCoordX + xOffset, currentChunkCoordY + yOffset);
+				Vector2 viewedChunkCoord = new Vector2(currentChunkCoordX + xOffset, currentChunkCoordZ + yOffset);
 
 				if (terrainChunkDict.ContainsKey(viewedChunkCoord))
 				{
