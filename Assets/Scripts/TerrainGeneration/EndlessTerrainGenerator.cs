@@ -12,7 +12,6 @@ public class EndlessTerrainGenerator : MonoBehaviour
 	private int visibleChunks;
 
 	private Dictionary<Vector2, TerrainChunk> terrainChunkDict = new Dictionary<Vector2, TerrainChunk>();
-	private List<TerrainChunk> terrainChunksVisibleLastUpdate = new List<TerrainChunk>();
 
 	private static TerrainGenerator terrainGenerator;
 
@@ -34,8 +33,9 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		private MeshFilter meshFilter;
 
 		private GameObject waterPlane;
+		private MeshRenderer waterRenderer;
 
-		private Vector2 position;
+		public Vector2 position;
 
 		private Bounds bounds;
 
@@ -43,21 +43,16 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		{
 			position = coord * size;
 
+			//generate data for chunk
+			TerrainGenerator.RequestChunkData(OnChunkDataReceived, position);
+
 			Vector3 position3D = new Vector3(position.x, 0, position.y);
 
 			//creating gameobject
 			meshObject = new GameObject("Terrain Chunk [" + coord.x + ", " + coord.y + "]");
 
-			//creating waterPlane
-			waterPlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
-
-			waterPlane.GetComponent<MeshRenderer>().material = TerrainGenerator.seaMaterial;
-			waterPlane.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-			waterPlane.transform.parent = meshObject.transform;
-			waterPlane.transform.localPosition = new Vector3(0, TerrainGenerator.seaLevel, 0);
-			waterPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
-			waterPlane.transform.localScale = new Vector3(size, size, 1f);
+			//set mesh object static
+			meshObject.isStatic = true;
 
 			//positioning chunk
 			meshObject.transform.parent = parent;
@@ -70,14 +65,50 @@ public class EndlessTerrainGenerator : MonoBehaviour
 			//adding components
 			meshFilter = meshObject.AddComponent<MeshFilter>();
 			meshRenderer = meshObject.AddComponent<MeshRenderer>();
-
-			//generate data for chunk
-			TerrainGenerator.RequestChunkData(OnChunkDataReceived, position);
 		}
 
 		private void OnChunkDataReceived(ChunkData chunkData)
 		{
 			TerrainGenerator.RequestMeshData(OnMeshDataReceived, chunkData);
+
+			bool waterVisible = false;
+
+			for (int z = 0; z < chunkData.heightMap.GetLength(0); ++z)
+			{
+				for (int x = 0; x < chunkData.heightMap.GetLength(1); ++x)
+				{
+					//if any point of land is lower than sea level
+					if ((chunkData.heightMap[x, z] * TerrainGenerator.mapHeightMultiplier) + meshObject.transform.localPosition.y <= TerrainGenerator.seaLevel)
+					{
+						waterVisible = true;
+						break;
+					}
+				}
+			}
+
+			//if isnt visible then return
+			if (!waterVisible)
+			{
+				waterPlane = null;
+				return;
+			}
+
+			//else create waterPlane
+
+			//creating waterPlane
+			waterPlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
+
+			//set water as static
+			waterPlane.isStatic = true;
+
+			waterRenderer = waterPlane.GetComponent<MeshRenderer>();
+			waterRenderer.material = TerrainGenerator.seaMaterial;
+			waterRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+			waterPlane.transform.parent = meshObject.transform;
+			waterPlane.transform.localPosition = new Vector3(0, TerrainGenerator.seaLevel, 0);
+			waterPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
+			waterPlane.transform.localScale = new Vector3(chunkData.heightMap.GetLength(1) - 1, chunkData.heightMap.GetLength(0) - 1, 1f);
 		}
 
 		private void OnMeshDataReceived(MeshData meshData)
@@ -91,20 +122,48 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 		public void UpdateTerrainChunk()
 		{
-			float viewerDstToEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
+			//if chunk isn't visible
+			if (!IsVisible())
+			{
+				if (ShouldBeVisible())
 
-			bool isVisible = viewerDstToEdge <= maxViewDist;
-			SetVisible(isVisible);
+					//if it should be visible set it to it
+					SetVisible(true);
+			}
+			else
+			{
+				//else if terrain chunk is visible check if it should be hidden
+				if (!ShouldBeVisible())
+
+					//if it shouldnt be visible set it to it
+					SetVisible(false);
+			}
 		}
 
 		public void SetVisible(bool visible)
 		{
-			meshObject.SetActive(visible);
+			//meshRenderer.forceRenderingOff = !visible;
+			meshRenderer.enabled = visible;
+
+			if (waterRenderer != null)
+
+				//waterRenderer.forceRenderingOff = !visible;
+				waterRenderer.enabled = visible;
 		}
 
 		public bool IsVisible()
 		{
-			return meshObject.activeSelf;
+			return meshRenderer.enabled;
+		}
+
+		public bool ShouldBeVisible()
+		{
+			float viewerDstToEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
+
+			//check if it should be visible
+			bool isInViewRange = viewerDstToEdge <= maxViewDist;
+
+			return EndlessTerrainGenerator.IsVisibleToCamera(meshRenderer.transform.position) && isInViewRange;
 		}
 	}
 
@@ -125,14 +184,12 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 	private void UpdateVisibleChunks()
 	{
+		var temp = Time.realtimeSinceStartup;
+
 		int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
 		int currentChunkCoordZ = Mathf.RoundToInt(viewerPosition.z / chunkSize);
 
-		//hide all chunks that were visible
-		foreach (TerrainChunk terrainChunk in terrainChunksVisibleLastUpdate)
-		{
-			terrainChunk.SetVisible(false);
-		}
+		Vector3 distance = new Vector3();
 
 		for (int yOffset = -visibleChunks; yOffset <= visibleChunks; ++yOffset)
 		{
@@ -143,14 +200,34 @@ public class EndlessTerrainGenerator : MonoBehaviour
 				if (terrainChunkDict.ContainsKey(viewedChunkCoord))
 				{
 					terrainChunkDict[viewedChunkCoord].UpdateTerrainChunk();
-					if (terrainChunkDict[viewedChunkCoord].IsVisible())
-					{ terrainChunksVisibleLastUpdate.Add(terrainChunkDict[viewedChunkCoord]); }
 				}
 				else
 				{
-					terrainChunkDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, this.transform));
+					distance.Set(viewedChunkCoord.x * chunkSize, 0, viewedChunkCoord.y * chunkSize);
+
+					if (Vector3.Distance(distance, viewerPosition) < maxViewDist)
+						terrainChunkDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, this.transform));
 				}
 			}
 		}
+
+		Debug.Log("Terrain update took " + ((Time.realtimeSinceStartup - temp) * 1000).ToString() + " ms");
+	}
+
+	public static bool IsVisibleToCamera(Vector3 position)
+	{
+		Vector3 visTest = TerrainGenerator.camera.WorldToViewportPoint(position);
+		if (visTest.x < -1.5)
+			return false;
+		if (visTest.y < -1.5)
+			return false;
+		if (visTest.x > 2.5)
+			return false;
+		if (visTest.y > 2.5)
+			return false;
+		if (visTest.z < -1.5)
+			return false;
+
+		return true;
 	}
 }

@@ -8,6 +8,8 @@ using UnityEngine;
 [RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
+	public Camera camera;
+
 	public Material terrainMaterial;
 	public Material seaMaterial;
 
@@ -27,8 +29,10 @@ public class TerrainGenerator : MonoBehaviour
 
 	public Vector2 generationOffset = new Vector2(0, 0);
 
-	[Range(0, 6)]
-	public int LOD;
+	[Range(0, 9), SerializeField]
+	private int LOD;
+
+	private int[] LODLookupTable = { 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 30 };
 
 	private MeshFilter meshFilter;
 
@@ -135,7 +139,7 @@ public class TerrainGenerator : MonoBehaviour
 
 	private void MeshDataThread(Action<MeshData> callback, ChunkData chunkData)
 	{
-		MeshData meshData = MeshGenerator.GenerateTerrainMesh(chunkData.heightMap, mapHeightMultiplier, LOD);
+		MeshData meshData = MeshGenerator.GenerateTerrainMesh(chunkData.heightMap, mapHeightMultiplier, LODLookupTable[LOD]);
 
 		//lock queue so no other threads access it
 		lock (meshDataInfosQueue)

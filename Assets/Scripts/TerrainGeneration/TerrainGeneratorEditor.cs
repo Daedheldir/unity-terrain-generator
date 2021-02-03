@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
+#if UNITY_EDITOR
+
 [CustomEditor(typeof(TerrainGenerator))]
 public class TerrainGeneratorEditor : Editor
 {
@@ -29,3 +31,5 @@ public class TerrainGeneratorEditor : Editor
 		}
 	}
 }
+
+#endif
