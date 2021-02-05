@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class EndlessTerrainGenerator : MonoBehaviour
 {
-	public const float maxViewDist = 3000;
+	public const float maxViewDist = 200;
 
 	public Transform viewer;
 
@@ -39,6 +40,8 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 		private Bounds bounds;
 
+		private ChunkData chunkData;
+
 		public TerrainChunk(Vector2 coord, int size, Transform parent)
 		{
 			position = coord * size;
@@ -69,6 +72,7 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 		private void OnChunkDataReceived(ChunkData chunkData)
 		{
+			this.chunkData = chunkData;
 			TerrainGenerator.RequestMeshData(OnMeshDataReceived, chunkData);
 
 			bool waterVisible = false;
@@ -184,8 +188,6 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 	private void UpdateVisibleChunks()
 	{
-		var temp = Time.realtimeSinceStartup;
-
 		int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
 		int currentChunkCoordZ = Mathf.RoundToInt(viewerPosition.z / chunkSize);
 
@@ -210,8 +212,6 @@ public class EndlessTerrainGenerator : MonoBehaviour
 				}
 			}
 		}
-
-		Debug.Log("Terrain update took " + ((Time.realtimeSinceStartup - temp) * 1000).ToString() + " ms");
 	}
 
 	public static bool IsVisibleToCamera(Vector3 position)

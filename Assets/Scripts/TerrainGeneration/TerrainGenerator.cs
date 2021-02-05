@@ -3,12 +3,16 @@ using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading.Tasks;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
 	public Camera camera;
+
+	private ChunkData chunkData;
+	public bool drawGradientRays;
 
 	public Material terrainMaterial;
 	public Material seaMaterial;
@@ -42,6 +46,8 @@ public class TerrainGenerator : MonoBehaviour
 	private Queue<ChunkThreadInfo<ChunkData>> chunkThreadInfosQueue = new Queue<ChunkThreadInfo<ChunkData>>();
 
 	private Queue<ChunkThreadInfo<MeshData>> meshDataInfosQueue = new Queue<ChunkThreadInfo<MeshData>>();
+
+	private static Mutex unityMutex = new Mutex();
 
 	// Start is called before the first frame update
 	private void Start()
@@ -104,6 +110,7 @@ public class TerrainGenerator : MonoBehaviour
 
 	private void EditorOnChunkDataReceived(ChunkData chunkData)
 	{
+		this.chunkData = chunkData;
 		MeshDataThread(EditorOnMeshDataReceived, chunkData);
 	}
 
@@ -112,6 +119,23 @@ public class TerrainGenerator : MonoBehaviour
 		ClearMap();
 
 		MeshFilter.sharedMesh = meshData.CreateMesh();
+
+		if (drawGradientRays)
+		{
+			for (int z = 0; z < chunkData.gradientMap.GetLength(0); z += 5)
+			{
+				for (int x = 0; x < chunkData.gradientMap.GetLength(1); x += 5)
+				{
+					Debug.Log(x + ", " + z);
+					float color =Mathf.Clamp(Mathf.Abs(chunkData.gradientMap[x, z].normalized.y)*10, 0 ,1);
+					Debug.DrawRay(
+						MeshFilter.sharedMesh.vertices[z * chunkData.gradientMap.GetLength(1) + x],
+						chunkData.gradientMap[x, z] * 30,
+						new Color(color, 1-color, 1-color),
+						60);
+				}
+			}
+		}
 	}
 
 	public void RequestChunkData(Action<ChunkData> callback, Vector2 offset)
@@ -150,11 +174,6 @@ public class TerrainGenerator : MonoBehaviour
 
 	public ChunkData GenerateChunkData(Vector2 offset)
 	{
-		float[,] map = new float[chunkSize, chunkSize];
-		float[,] mask = null;
-		float minValue = float.MaxValue;
-		float maxValue = float.MinValue;
-
 		List<IGenerationMethod> activeGenerationMethods = new List<IGenerationMethod>();
 		List<GenerationSettings> activeGenerationSettings = new List<GenerationSettings>();
 
@@ -167,21 +186,36 @@ public class TerrainGenerator : MonoBehaviour
 			activeGenerationMethods.Add(generationMethods[i]);
 			activeGenerationSettings.Add(generationSettings[i]);
 		}
+		Task<float[,]>[] tasksList = new Task<float[,]>[activeGenerationMethods.Count];
 
+		//generate heightmaps
 		for (int i = 0; i < activeGenerationMethods.Count; ++i)
 		{
-			float[,] tempMap = activeGenerationMethods[i].CreateHeightMap(offset * new Vector2(1, -1));
+			int index = i;
+			tasksList[i] = Task.Factory.StartNew(delegate
+			  {
+				  return activeGenerationMethods[index].CreateHeightMap(offset * new Vector2(1, -1));
+			  });
+		}
+		float[,] map = SumGeneratedHeightmaps(tasksList, activeGenerationSettings);
+		return new ChunkData(map);
+	}
 
-			if (i == 0 && useFirstHeightMapAsMask)
-			{
-				mask = (float[,])tempMap.Clone();
-			}
+	private float[,] SumGeneratedHeightmaps(Task<float[,]>[] runningTasks, List<GenerationSettings> generationSettings)
+	{
+		float[,] map = new float[chunkSize, chunkSize];
+		float[,] mask = null;
+		float minValue = float.MaxValue;
+		float maxValue = float.MinValue;
 
+		for (int i = 0; i < runningTasks.Length; ++i)
+		{
 			for (int z = 0; z < map.GetLength(0); ++z)
 			{
 				for (int x = 0; x < map.GetLength(1); ++x)
 				{
-					map[x, z] += tempMap[x, z] * activeGenerationSettings[i].weight;
+					float[,] tempMap = runningTasks[i].Result;
+					map[x, z] += tempMap[x, z] * generationSettings[i].weight;
 
 					if (map[x, z] > maxValue)
 						maxValue = map[x, z];
@@ -189,6 +223,13 @@ public class TerrainGenerator : MonoBehaviour
 						minValue = map[x, z];
 				}
 			}
+		}
+
+		//generate mask if its required
+		//all threads should finish by now
+		if (useFirstHeightMapAsMask)
+		{
+			mask = runningTasks[0].Result;
 		}
 		for (int z = 0; z < map.GetLength(0); ++z)
 		{
@@ -201,7 +242,7 @@ public class TerrainGenerator : MonoBehaviour
 			}
 		}
 
-		return new ChunkData(map);
+		return map;
 	}
 
 	public void ClearMap()
@@ -260,14 +301,43 @@ public class TerrainGenerator : MonoBehaviour
 			this.parameter = parameter;
 		}
 	}
+
+	private void OnDestroy()
+	{
+	}
 }
 
 public struct ChunkData
 {
 	public readonly float[,] heightMap;
+	public readonly Vector3[,] gradientMap;
 
 	public ChunkData(float[,] heightMap)
 	{
 		this.heightMap = heightMap;
+		int height = heightMap.GetLength(0);
+		int width = heightMap.GetLength(1);
+
+		//calculating gradient
+		this.gradientMap = new Vector3[width, height];
+
+		for (int z = 0; z < height; ++z)
+		{
+			for (int x = 0; x < width; ++x)
+			{
+				float slopeX = heightMap[x < width - 1 ? x + 1 : x, z] - heightMap[x > 0 ? x - 1 : x, z];
+				float slopeZ = heightMap[x, z < height - 1 ? z + 1 : z] - heightMap[x, z > 0 ? z - 1 : z];
+
+				if (x == 0 || x == width - 1)
+					slopeX *= 2;
+				if (z == 0 || z == height - 1)
+					slopeZ *= 2;
+
+				Vector3 normal = new Vector3(-slopeX * (width - 1), (width - 1), slopeZ * (height - 1));
+				normal.Normalize();
+
+				gradientMap[x, z] = normal - Vector3.up;
+			}
+		}
 	}
 }
