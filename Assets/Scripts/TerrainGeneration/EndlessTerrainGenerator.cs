@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class EndlessTerrainGenerator : MonoBehaviour
 {
-	public const float maxViewDist = 200;
+	public const float maxViewDist = 3000;
 
 	public Transform viewer;
 
@@ -162,10 +162,10 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 		public bool ShouldBeVisible()
 		{
-			float viewerDstToEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
+			float viewerDstToEdge = bounds.SqrDistance(viewerPosition);
 
 			//check if it should be visible
-			bool isInViewRange = viewerDstToEdge <= maxViewDist;
+			bool isInViewRange = viewerDstToEdge <= maxViewDist * maxViewDist;
 
 			return EndlessTerrainGenerator.IsVisibleToCamera(meshRenderer.transform.position) && isInViewRange;
 		}
@@ -216,17 +216,28 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 	public static bool IsVisibleToCamera(Vector3 position)
 	{
-		Vector3 visTest = TerrainGenerator.camera.WorldToViewportPoint(position);
-		if (visTest.x < -1.5)
+		Vector3 visTest = TerrainGenerator.mainCamera.WorldToViewportPoint(position);
+
+		if (visTest.z < -2)
+		{
 			return false;
-		if (visTest.y < -1.5)
+		}
+		else if (visTest.x < -2)
+		{
 			return false;
-		if (visTest.x > 2.5)
+		}
+		else if (visTest.x > 3)
+		{
 			return false;
-		if (visTest.y > 2.5)
+		}
+		else if (visTest.y < -2)
+		{
 			return false;
-		if (visTest.z < -1.5)
+		}
+		else if (visTest.y > 3)
+		{
 			return false;
+		}
 
 		return true;
 	}

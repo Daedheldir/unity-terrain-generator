@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 [RequireComponent(typeof(MeshCollider))]
 public class TerrainGenerator : MonoBehaviour
 {
-	public Camera camera;
+	public Camera mainCamera;
 
 	private ChunkData chunkData;
 	public bool drawGradientRays;
@@ -122,16 +122,16 @@ public class TerrainGenerator : MonoBehaviour
 
 		if (drawGradientRays)
 		{
-			for (int z = 0; z < chunkData.gradientMap.GetLength(0); z += 5)
+			for (int z = 0; z < chunkData.gradientMap.GetLength(0); z += 8)
 			{
-				for (int x = 0; x < chunkData.gradientMap.GetLength(1); x += 5)
+				for (int x = 0; x < chunkData.gradientMap.GetLength(1); x += 8)
 				{
 					Debug.Log(x + ", " + z);
-					float color =Mathf.Clamp(Mathf.Abs(chunkData.gradientMap[x, z].normalized.y)*10, 0 ,1);
+					float color = Mathf.Clamp(Mathf.Abs(chunkData.gradientMap[x, z].normalized.y) * 10, 0, 1);
 					Debug.DrawRay(
 						MeshFilter.sharedMesh.vertices[z * chunkData.gradientMap.GetLength(1) + x],
 						chunkData.gradientMap[x, z] * 30,
-						new Color(color, 1-color, 1-color),
+						new Color(color, 1 - color, 1 - color),
 						60);
 				}
 			}
