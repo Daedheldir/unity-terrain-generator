@@ -5,17 +5,17 @@ using UnityEngine;
 [System.Serializable]
 public class VoronoiDiagrams : GenerationMethodBase
 {
-	public int numberOfVoronoiPoints = 50;
+	public int numberOfVoronoiPoints = 5;
+	private bool pointsCreated = false;
+	private List<List<Vector2>> points;
 
 	public VoronoiDiagrams(GenerationSettings settings, int seed) : base(settings, seed)
 	{
-		this.numberOfVoronoiPoints = (int)(settings.scale > 25 ? 25 : settings.scale);
+		this.numberOfVoronoiPoints = (int)(settings.Scale > 50 ? 50 : settings.Scale);
 	}
 
 	public override float EvaluateHeight(Vector2 point, Vector2[] octaveOffsets, int startingIndex, int endingIndex, float maskValue = 0)
 	{
-		Vector2 sample;
-
 		float noiseHeight = 0f;
 
 		float halfChunkSize = settings.ChunkSize / 2f;
@@ -25,40 +25,43 @@ public class VoronoiDiagrams : GenerationMethodBase
 		float frequency = (startingIndex > 0) ? (1 / (settings.smoothing * startingIndex)) : 1;
 
 		//creating random points
-		List<List<Vector2>> points = new List<List<Vector2>>();
-
-		for (int j = 0; j < settings.octaves - startingIndex; ++j)
+		if (!pointsCreated)
 		{
-			points.Add(new List<Vector2>());    //add a new octave points list
+			points = new List<List<Vector2>>();
 
-			for (int i = 0; i < numberOfVoronoiPoints * frequency; ++i)
+			for (int j = 0; j < settings.octaves - startingIndex; ++j)
 			{
-				points[j].Add(
-					new Vector2(
-						prng.Next((int)(octaveOffsets[j].x - halfChunkSize), (int)(halfChunkSize + octaveOffsets[j].x)),
+				points.Add(new List<Vector2>());    //add a new octave points list
 
-						prng.Next((int)(octaveOffsets[j].y - halfChunkSize), (int)(halfChunkSize + octaveOffsets[j].y))
-						)
-					);
+				for (int i = 0; i < numberOfVoronoiPoints * frequency; ++i)
+				{
+					points[j].Add(
+						new Vector2(
+							prng.Next((int)(-settings.ChunkSize), (int)(settings.ChunkSize)),
+
+							prng.Next((int)(-settings.ChunkSize), (int)(settings.ChunkSize))
+							)
+						);
+				}
+
+				//after each octave, next octave should have more points so i has more details
+				frequency /= settings.smoothing;
 			}
 
-			//after each octave, next octave should have more points so i has more details
-			frequency /= settings.smoothing;
+			pointsCreated = true;
 		}
 
 		//iterate through all octaves
 		for (int j = startingIndex; j < endingIndex; ++j)
 		{
-			sample = EvaluateSamplePoint(point.x, point.y, octaveOffsets[j], frequency);
-
 			float minDistance = float.MaxValue;
 			float maxDistance = float.MinValue;
 
 			//find closest point to current map cell
 			for (int i = 0; i < points[j].Count; ++i)
 			{
-				float currentDistance = Vector2.Distance(sample, points[j][i]);
-
+				float currentDistance = 0;
+				currentDistance = Vector2.Distance(point, points[j][i]);
 				if (currentDistance < minDistance)
 				{
 					minDistance = currentDistance;
@@ -70,7 +73,7 @@ public class VoronoiDiagrams : GenerationMethodBase
 			}
 
 			//change height depending on distance from closest point
-			noiseHeight += EvaluateHeight(point) * amplitude;
+			noiseHeight += EvaluateHeight(new Vector2(minDistance, maxDistance)) * amplitude;
 
 			//updating frequency and amplitude for next octave
 			amplitude *= settings.persistance;

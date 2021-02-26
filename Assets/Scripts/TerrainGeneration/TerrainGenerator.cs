@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 public class TerrainGenerator : MonoBehaviour
 {
 	public Camera mainCamera;
+	public bool saveToFile = false;
 
 	private ChunkData chunkData;
 	public bool drawGradientRays;
@@ -26,6 +27,7 @@ public class TerrainGenerator : MonoBehaviour
 	public bool autoUpdateMap = false;
 	public int seed = 0;
 	public float mapHeightMultiplier = 10;
+	public float scaleMultiplier = 1f;
 	public float seaLevel = 1f;
 
 	//LOD
@@ -89,6 +91,9 @@ public class TerrainGenerator : MonoBehaviour
 		else if (chunkSize > 241)
 			chunkSize = 241;
 
+		if (scaleMultiplier <= 0)
+			scaleMultiplier = 0.001f;
+
 		if (mapHeightMultiplier <= 0)
 			mapHeightMultiplier = 0.0001f;
 	}
@@ -111,6 +116,9 @@ public class TerrainGenerator : MonoBehaviour
 	private void EditorOnChunkDataReceived(ChunkData chunkData)
 	{
 		this.chunkData = chunkData;
+		if (saveToFile)
+			HeightMapSaver.SaveToTexture(dh.Math.NormalizeMap(chunkData.heightMap), "map");
+
 		MeshDataThread(EditorOnMeshDataReceived, chunkData);
 	}
 
@@ -208,22 +216,7 @@ public class TerrainGenerator : MonoBehaviour
 		float minValue = float.MaxValue;
 		float maxValue = float.MinValue;
 
-		for (int i = 0; i < runningTasks.Length; ++i)
-		{
-			for (int z = 0; z < map.GetLength(0); ++z)
-			{
-				for (int x = 0; x < map.GetLength(1); ++x)
-				{
-					float[,] tempMap = runningTasks[i].Result;
-					map[x, z] += tempMap[x, z] * generationSettings[i].weight;
-
-					if (map[x, z] > maxValue)
-						maxValue = map[x, z];
-					else if (map[x, z] < minValue)
-						minValue = map[x, z];
-				}
-			}
-		}
+		float maxWeight = 0;
 
 		//generate mask if its required
 		//all threads should finish by now
@@ -231,13 +224,41 @@ public class TerrainGenerator : MonoBehaviour
 		{
 			mask = runningTasks[0].Result;
 		}
+
+		for (int i = 0; i < runningTasks.Length; ++i)
+		{
+			for (int z = 0; z < map.GetLength(0); ++z)
+			{
+				for (int x = 0; x < map.GetLength(1); ++x)
+				{
+					float[,] tempMap = runningTasks[i].Result;
+
+					float addedVal;
+					if (useFirstHeightMapAsMask && generationSettings[i].useFirstHeightmapAsMask)
+					{
+						addedVal = tempMap[x, z] * generationSettings[i].weight * (generationSettings[i].invertFirstHeightmapMask ? 1 - mask[x, z] : mask[x, z]);
+					}
+					else
+						addedVal = tempMap[x, z] * generationSettings[i].weight;
+
+					map[x, z] += generationSettings[i].subtractFromMap ? -addedVal : addedVal;
+
+					if (map[x, z] > maxValue)
+						maxValue = map[x, z];
+					else if (map[x, z] < minValue)
+						minValue = map[x, z];
+				}
+			}
+			if (generationSettings[i].weight > maxWeight)
+				maxWeight = generationSettings[i].weight;
+		}
+
+		//map = dh.Math.NormalizeMap(map, 0, generationMethods.Length * maxWeight);
+
 		for (int z = 0; z < map.GetLength(0); ++z)
 		{
 			for (int x = 0; x < map.GetLength(1); ++x)
 			{
-				if (useFirstHeightMapAsMask)
-					map[x, z] *= mask[x, z];
-
 				map[x, z] *= mapHeightMultiplier;
 			}
 		}
@@ -283,6 +304,14 @@ public class TerrainGenerator : MonoBehaviour
 
 				case GenerationSettings.GenerationMethodType.Sine:
 					generationMethod = new Sine(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Cosine:
+					generationMethod = new Cosine(generationSettings[i], seed);
+					break;
+
+				case GenerationSettings.GenerationMethodType.Billow:
+					generationMethod = new Billow(generationSettings[i], seed);
 					break;
 			}
 

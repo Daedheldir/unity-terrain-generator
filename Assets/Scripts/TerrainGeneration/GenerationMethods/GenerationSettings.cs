@@ -11,7 +11,9 @@ public class GenerationSettings
 		PerlinNoise,
 		RidgedPerlinNoise,
 		Voronoi,
-		Sine
+		Sine,
+		Cosine,
+		Billow
 	}
 
 	public GenerationSettings(GenerationMethodType methodType, int octaves, float scale, float weight, float persistance, float smoothing, int chunkSize)
@@ -19,7 +21,7 @@ public class GenerationSettings
 		this.methodType = methodType;
 
 		this.octaves = octaves;
-		this.scale = scale;
+		this.Scale = scale;
 		this.weight = weight;
 		this.persistance = persistance;
 		this.smoothing = smoothing;
@@ -29,11 +31,17 @@ public class GenerationSettings
 
 	public bool isActive = true;
 	public bool useFirstOctaveAsMask = false;
+	public bool useFirstHeightmapAsMask = false;
+	public bool invertFirstHeightmapMask = false;
+	public bool subtractFromMap = false;
 
 	public GenerationMethodType methodType;
 
 	public int octaves;
+
+	[Min(1f)]
 	public float scale;
+
 	public float weight;
 	public float persistance;
 
@@ -43,4 +51,5 @@ public class GenerationSettings
 	private int chunkSize = 241;
 
 	public int ChunkSize { get => chunkSize; set => chunkSize = value; }
+	public float Scale { get => scale; set => scale = value; }
 }

@@ -43,7 +43,7 @@ public class Sine : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		float sinArg = (1f - Mathf.PerlinNoise(point.x, point.y) * 2f);
+		float sinArg = (Mathf.PerlinNoise(point.x, point.y) * 2f - 1);
 		float val = 1 - Mathf.Abs(Mathf.Sin(sinArg));
 		return val;
 	}
