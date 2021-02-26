@@ -42,6 +42,7 @@ public class RidgedPerlinNoise : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		return 1 - Mathf.Abs((2f * Mathf.PerlinNoise(point.x, point.y)) - 1f);
+		float val = 1 - Mathf.Abs((2f * Mathf.PerlinNoise(point.x, point.y)) - 1f);
+		return val * val;
 	}
 }

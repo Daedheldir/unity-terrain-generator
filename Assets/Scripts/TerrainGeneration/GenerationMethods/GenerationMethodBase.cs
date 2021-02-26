@@ -12,6 +12,7 @@ public abstract class GenerationMethodBase : IGenerationMethod
 	{
 		this.settings = settings;
 		prng = new System.Random(seed);
+
 		//creating octave offsets
 		randomOffsets = new Vector2[settings.octaves];
 
@@ -66,7 +67,6 @@ public abstract class GenerationMethodBase : IGenerationMethod
 
 		//normalizing values to be between 0-1
 		//map = dh.Math.NormalizeMap(map, minValue, maxValue);
-
 		//wait for access to resources
 		return map;
 	}
@@ -74,8 +74,8 @@ public abstract class GenerationMethodBase : IGenerationMethod
 	protected Vector2 EvaluateSamplePoint(float x, float z, Vector2 octaveOffset, float frequency)
 	{
 		Vector2 sample = new Vector2();
-		sample.y = ((z + octaveOffset.y - settings.ChunkSize / 2f) / settings.scale) * frequency;
-		sample.x = ((x + octaveOffset.x - settings.ChunkSize / 2f) / settings.scale) * frequency;
+		sample.y = ((z + octaveOffset.y - settings.ChunkSize / 2f) / settings.Scale) * frequency;
+		sample.x = ((x + octaveOffset.x - settings.ChunkSize / 2f) / settings.Scale) * frequency;
 
 		return sample;
 	}

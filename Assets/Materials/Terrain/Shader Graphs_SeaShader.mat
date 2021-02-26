@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Shader Graphs_SeaShader
+  m_Shader: {fileID: -6465566751694194690, guid: 1b4e6a69e16868849902ba32d674ac15,
+    type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - Texture2D_1DDDEC11:
+        m_Texture: {fileID: 2800000, guid: a130bdb963af02247a462c1cb1088cac, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_40CB7AA8:
+        m_Texture: {fileID: 2800000, guid: 8b36c85d957bc534bac51171dca3dcf8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_7333CEBD:
+        m_Texture: {fileID: 2800000, guid: 2687baf605f81a540a0583b3a99f17d9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_783DC8B4:
+        m_Texture: {fileID: 2800000, guid: 42391733ae749a74f90bd83da63f4aad, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_D68D4168:
+        m_Texture: {fileID: 2800000, guid: 18abd3ca147022a40861805a6ff51464, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_EFDAB85:
+        m_Texture: {fileID: 2800000, guid: c0227e3058ac63848ad018d19998cf70, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - Vector1_1D15CF22: 0.364
+    - Vector1_27285696: 0.002
+    - Vector1_29F35AC5: 0.868
+    - Vector1_4709ED90: 0.6
+    - Vector1_48065FF: 1.99
+    - Vector1_48735160: 0.786
+    - Vector1_4EDCB3E0: 0.85
+    - Vector1_61E9DD22: 0
+    - Vector1_75794457: 0.8
+    - Vector1_85F1B7EC: 0.7
+    - Vector1_B5AE1913: 1.3
+    - Vector1_F5DD9B3B: 0.06
+    m_Colors:
+    - Color_15AAC241: {r: 0.18222678, g: 0.26087, b: 0.3301887, a: 0.28235295}
+    - Color_C58F040B: {r: 0, g: 0.32305956, b: 0.46226418, a: 0}
+    - Color_D92F30E3: {r: 0.13376646, g: 0.16981131, b: 0.1608001, a: 1}

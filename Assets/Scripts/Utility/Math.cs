@@ -23,11 +23,29 @@ namespace dh
 				for (int x = 0; x < inputMap.GetLength(0); ++x)
 				{
 					float value = Mathf.InverseLerp(minValue, maxValue, inputMap[x, z]);
-					Debug.Assert(value >= 0f && value <= 1f, "Value doesn't fit within bounds!");
+					Debug.Assert(value >= 0f && value <= 1f, "Value doesn't fit within bounds! Value = " + value);
 					map[x, z] = value;
 				}
 			}
 			return map;
+		}
+		public static float[,] NormalizeMap(float[,] inputMap)
+		{
+			float maxValue = float.MinValue;
+			float minValue = float.MaxValue;
+
+			for (int z = 0; z < inputMap.GetLength(1); ++z)
+			{
+				for (int x = 0; x < inputMap.GetLength(0); ++x)
+				{
+					if (inputMap[x, z] > maxValue)
+						maxValue = inputMap[x, z];
+					else if (inputMap[x, z] < minValue)
+						minValue = inputMap[x, z];
+				}
+			}
+
+			return NormalizeMap(inputMap, minValue, maxValue);
 		}
 
 		public static float CosineInterpolate(float min, float max, float ang)
