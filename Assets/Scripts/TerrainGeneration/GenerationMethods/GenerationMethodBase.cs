@@ -35,9 +35,6 @@ public abstract class GenerationMethodBase : IGenerationMethod
 		float[,] map = new float[settings.ChunkSize, settings.ChunkSize];
 		float[,] mask = new float[settings.ChunkSize, settings.ChunkSize];
 
-		float maxValue = float.MinValue;
-		float minValue = float.MaxValue;
-
 		//creating first octave
 		for (int z = 0; z < settings.ChunkSize; ++z)
 		{
@@ -57,16 +54,9 @@ public abstract class GenerationMethodBase : IGenerationMethod
 				float value = EvaluateHeight(new Vector2(x, z), octaveOffsets, 1, octaveOffsets.Length, mask[x, z]);
 
 				map[x, z] += value;
-
-				if (map[x, z] > maxValue)
-					maxValue = map[x, z];
-				else if (map[x, z] < minValue)
-					minValue = map[x, z];
 			}
 		}
 
-		//normalizing values to be between 0-1
-		//map = dh.Math.NormalizeMap(map, minValue, maxValue);
 		//wait for access to resources
 		return map;
 	}

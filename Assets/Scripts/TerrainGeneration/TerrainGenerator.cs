@@ -136,11 +136,12 @@ public class TerrainGenerator : MonoBehaviour
 				{
 					Debug.Log(x + ", " + z);
 					float color = Mathf.Clamp(Mathf.Abs(chunkData.gradientMap[x, z].normalized.y) * 10, 0, 1);
-					Debug.DrawRay(
+					DrawArrow.ForDebug(
 						MeshFilter.sharedMesh.vertices[z * chunkData.gradientMap.GetLength(1) + x],
-						chunkData.gradientMap[x, z] * 30,
+						chunkData.gradientMap[x, z] * 40,
 						new Color(color, 1 - color, 1 - color),
-						60);
+						60f,
+						2);
 				}
 			}
 		}
@@ -282,41 +283,52 @@ public class TerrainGenerator : MonoBehaviour
 		for (int i = 0; i < generationSettings.Length; ++i)
 		{
 			generationSettings[i].ChunkSize = chunkSize;
-			IGenerationMethod generationMethod = null;
 
-			switch (generationSettings[i].methodType)
-			{
-				case GenerationSettings.GenerationMethodType.SpatialSubdivision:
-					generationMethod = new SpatialSubdivision(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.PerlinNoise:
-					generationMethod = new PerlinNoise(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.RidgedPerlinNoise:
-					generationMethod = new RidgedPerlinNoise(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.Voronoi:
-					generationMethod = new VoronoiDiagrams(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.Sine:
-					generationMethod = new Sine(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.Cosine:
-					generationMethod = new Cosine(generationSettings[i], seed);
-					break;
-
-				case GenerationSettings.GenerationMethodType.Billow:
-					generationMethod = new Billow(generationSettings[i], seed);
-					break;
-			}
-
-			generationMethods[i] = generationMethod;
+			generationMethods[i] = GetGenerationMethod(generationSettings[i], seed);
 		}
+	}
+	public static IGenerationMethod GetGenerationMethod(GenerationSettings settings, int seed)
+	{
+		IGenerationMethod generationMethod = null;
+		switch (settings.methodType)
+		{
+			case GenerationSettings.GenerationMethodType.SpatialSubdivision:
+				settings.methodName = "Spatial Subdivision";
+				generationMethod = new SpatialSubdivision(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.PerlinNoise:
+				settings.methodName = "Perlin";
+				generationMethod = new PerlinNoise(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.RidgedPerlinNoise:
+				settings.methodName = "Ridged";
+				generationMethod = new RidgedPerlinNoise(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.Voronoi:
+				settings.methodName = "Voronoi";
+				generationMethod = new VoronoiDiagrams(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.Sine:
+				settings.methodName = "Sine";
+				generationMethod = new Sine(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.Cosine:
+				settings.methodName = "Cosine";
+				generationMethod = new Cosine(settings, seed);
+				break;
+
+			case GenerationSettings.GenerationMethodType.Billow:
+				settings.methodName = "Billow";
+				generationMethod = new Billow(settings, seed);
+				break;
+		}
+
+		return generationMethod;
 	}
 
 	private struct ChunkThreadInfo<T>
@@ -368,5 +380,49 @@ public struct ChunkData
 				gradientMap[x, z] = normal - Vector3.up;
 			}
 		}
+	}
+}
+
+public static class DrawArrow
+{
+	public static void ForGizmo(Vector3 pos, Vector3 direction, float arrowHeadLength = 0.25f, float arrowHeadAngle = 20.0f)
+	{
+		Gizmos.DrawRay(pos, direction);
+
+		Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 + arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 - arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Gizmos.DrawRay(pos + direction, right * arrowHeadLength);
+		Gizmos.DrawRay(pos + direction, left * arrowHeadLength);
+	}
+
+	public static void ForGizmo(Vector3 pos, Vector3 direction, Color color, float arrowHeadLength = 0.25f, float arrowHeadAngle = 20.0f)
+	{
+		Gizmos.color = color;
+		Gizmos.DrawRay(pos, direction);
+
+		Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 + arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 - arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Gizmos.DrawRay(pos + direction, right * arrowHeadLength);
+		Gizmos.DrawRay(pos + direction, left * arrowHeadLength);
+	}
+
+	public static void ForDebug(Vector3 pos, Vector3 direction, float arrowHeadLength = 0.25f, float arrowHeadAngle = 20.0f)
+	{
+		Debug.DrawRay(pos, direction);
+
+		Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 + arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 - arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Debug.DrawRay(pos + direction, right * arrowHeadLength);
+		Debug.DrawRay(pos + direction, left * arrowHeadLength);
+	}
+
+	public static void ForDebug(Vector3 pos, Vector3 direction, Color color, float duration = 1 / 60f, float arrowHeadLength = 0.25f, float arrowHeadAngle = 20.0f)
+	{
+		Debug.DrawRay(pos, direction, color, duration);
+
+		Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 + arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 - arrowHeadAngle, 0) * new Vector3(0, 0, 1);
+		Debug.DrawRay(pos + direction, right * arrowHeadLength, color, duration);
+		Debug.DrawRay(pos + direction, left * arrowHeadLength, color, duration);
 	}
 }

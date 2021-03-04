@@ -29,6 +29,10 @@ public class TerrainGeneratorEditor : Editor
 		{
 			terrainGenerator.ClearMap();
 		}
+		if (GUILayout.Button("Perform Tests"))
+		{
+			Tests.PlayGenerationTests();
+		}
 	}
 }
 

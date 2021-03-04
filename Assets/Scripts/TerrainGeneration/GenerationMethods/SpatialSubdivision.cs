@@ -58,7 +58,7 @@ public class SpatialSubdivision : GenerationMethodBase
 		{
 			for (int x = 1; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageDiagonal(newMap, z, x) + Random.Range((-settings.smoothing) / (step + 0.1f), (settings.smoothing) / (step + 0.1f));
+				newMap[z, x] = averageDiagonal(newMap, z, x) + (prng.Next((int)-settings.smoothing*100, (int)settings.smoothing*100) / (step + 0.1f))/100f;
 
 				//update min and max values
 				UpdateMinMaxValues(newMap[z, x]);
@@ -66,7 +66,7 @@ public class SpatialSubdivision : GenerationMethodBase
 				loopCounter++;
 			}
 		}
-		Debug.Log("Loop counter after first loop " + loopCounter);
+		//Debug.Log("Loop counter after first loop " + loopCounter);
 		loopCounter = 0;
 
 		//find values for empty points orthogonally
@@ -74,7 +74,7 @@ public class SpatialSubdivision : GenerationMethodBase
 		{
 			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageOrthogonal(newMap, z, x) + Random.Range((-settings.smoothing) / (step + 0.1f), (settings.smoothing) / (step + 0.1f));
+				newMap[z, x] = averageOrthogonal(newMap, z, x) + (prng.Next((int)-settings.smoothing * 100, (int)settings.smoothing * 100) / (step + 0.1f)) / 100f;
 
 				//update min and max values
 				UpdateMinMaxValues(newMap[z, x]);
@@ -82,7 +82,7 @@ public class SpatialSubdivision : GenerationMethodBase
 				loopCounter++;
 			}
 		}
-		Debug.Log("Loop counter after second loop " + loopCounter);
+		//Debug.Log("Loop counter after second loop " + loopCounter);
 
 		return genMap(newMap, step + 1);
 	}

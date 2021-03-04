@@ -29,6 +29,8 @@ public class GenerationSettings
 		this.ChunkSize = chunkSize;
 	}
 
+	public string methodName;
+
 	public bool isActive = true;
 	public bool useFirstOctaveAsMask = false;
 	public bool useFirstHeightmapAsMask = false;

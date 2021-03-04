@@ -55,12 +55,12 @@ public static class HeightMapSaver
 		stream.Close();
 	}
 
-	public static void SaveTexTable(float[,] heightMap, string name)
+	public static void SaveTexTable(float[,] table, string fileName, string caption)
 	{
 		FileStream stream;
-		if (File.Exists(name + ".tex"))
-			File.Delete(name + ".tex");
-		stream = File.Open(name + ".tex", FileMode.Create);
+		if (File.Exists(fileName + ".tex"))
+			File.Delete(fileName + ".tex");
+		stream = File.Open(fileName + ".tex", FileMode.Create);
 
 		StreamWriter streamWriter = new StreamWriter(stream);
 
@@ -69,27 +69,27 @@ public static class HeightMapSaver
 
 		streamWriter.Write("\\begin{tabularx}{1\\textwidth}{ |");
 		streamWriter.Write(">{\\centering\\arraybackslash}X||");
-		for (int z = 0; z < heightMap.GetLength(0); ++z)
+		for (int z = 0; z < table.GetLength(0); ++z)
 		{
 			streamWriter.Write(">{\\centering\\arraybackslash}X|");
 		}
 		streamWriter.WriteLine("}");
 		streamWriter.WriteLine("\\hline");
 		streamWriter.Write("z/x & ");
-		for (int x = 0; x < heightMap.GetLength(0); ++x)
+		for (int x = 0; x < table.GetLength(0); ++x)
 		{
 			streamWriter.Write(x);
-			if (x != heightMap.GetLength(0) - 1)
+			if (x != table.GetLength(0) - 1)
 				streamWriter.Write(" & ");
 		}
 		streamWriter.WriteLine("\\\\");
 		streamWriter.WriteLine("\\hline");
 
-		for (int z = 0; z < heightMap.GetLength(0); ++z)
+		for (int z = 0; z < table.GetLength(0); ++z)
 		{
 			streamWriter.WriteLine("\\hline");
 
-			for (int x = 0; x < heightMap.GetLength(1); ++x)
+			for (int x = 0; x < table.GetLength(1); ++x)
 			{
 				if (x == 0)
 				{
@@ -97,8 +97,8 @@ public static class HeightMapSaver
 					streamWriter.Write(" & ");
 				}
 
-				streamWriter.Write(Math.Round(heightMap[z, x], 2));
-				if (x != heightMap.GetLength(1) - 1)
+				streamWriter.Write(Math.Round(table[z, x], 2));
+				if (x != table.GetLength(1) - 1)
 					streamWriter.Write(" & ");
 			}
 			streamWriter.WriteLine("\\\\");
@@ -106,8 +106,64 @@ public static class HeightMapSaver
 		streamWriter.WriteLine("\\hline");
 
 		streamWriter.WriteLine("\\end{tabularx}");
-		streamWriter.WriteLine("\\caption{ Table inside a floating element}");
-		streamWriter.WriteLine("\\label{ table:" + name + "}");
+		streamWriter.WriteLine("\\caption{" + caption + "}");
+		streamWriter.WriteLine("\\label{ table:" + fileName + "}");
+		streamWriter.WriteLine("\\end{table}");
+
+		streamWriter.Close();
+		stream.Close();
+	}
+
+	public static void SaveTexTable(string[,] table, string fileName, string caption)
+	{
+		FileStream stream;
+		if (File.Exists(fileName + ".tex"))
+			File.Delete(fileName + ".tex");
+		stream = File.Open(fileName + ".tex", FileMode.Create);
+
+		StreamWriter streamWriter = new StreamWriter(stream);
+
+		streamWriter.WriteLine("\\begin{table}[h]");
+		streamWriter.WriteLine("\\centering");
+
+		streamWriter.Write("\\begin{tabularx}{1\\textwidth}{ |");
+		streamWriter.Write(">{\\centering\\arraybackslash}X||");
+		for (int x = 0; x < table.GetLength(0); ++x)
+		{
+			streamWriter.Write(">{\\centering\\arraybackslash}X|");
+		}
+		streamWriter.WriteLine("}");
+		streamWriter.WriteLine("\\hline");
+
+		//write first row
+		for (int x = 0; x < table.GetLength(1); ++x)
+		{
+			streamWriter.Write(table[0, x]);
+			if (x != table.GetLength(1) - 1)
+				streamWriter.Write(" & ");
+		}
+		streamWriter.WriteLine("\\\\");
+		streamWriter.WriteLine("\\hline");
+
+		//write rest of the rows
+
+		for (int z = 1; z < table.GetLength(0); ++z)
+		{
+			streamWriter.WriteLine("\\hline");
+
+			for (int x = 0; x < table.GetLength(1); ++x)
+			{
+				streamWriter.Write(table[z, x]);
+				if (x != table.GetLength(1) - 1)
+					streamWriter.Write(" & ");
+			}
+			streamWriter.WriteLine("\\\\");
+		}
+		streamWriter.WriteLine("\\hline");
+
+		streamWriter.WriteLine("\\end{tabularx}");
+		streamWriter.WriteLine("\\caption{" + caption + "}");
+		streamWriter.WriteLine("\\label{ table:" + fileName + "}");
 		streamWriter.WriteLine("\\end{table}");
 
 		streamWriter.Close();

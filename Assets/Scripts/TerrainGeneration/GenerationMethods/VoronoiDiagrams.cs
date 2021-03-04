@@ -32,8 +32,8 @@ public class VoronoiDiagrams : GenerationMethodBase
 			for (int j = 0; j < settings.octaves - startingIndex; ++j)
 			{
 				points.Add(new List<Vector2>());    //add a new octave points list
-
-				for (int i = 0; i < numberOfVoronoiPoints * frequency; ++i)
+				float numberOfPoints = numberOfVoronoiPoints * frequency < 512 ? numberOfVoronoiPoints * frequency : 128;
+				for (int i = 0; i < numberOfPoints; ++i)
 				{
 					points[j].Add(
 						new Vector2(
