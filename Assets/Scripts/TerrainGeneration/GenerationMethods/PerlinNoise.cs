@@ -6,7 +6,7 @@ using UnityEngine;
 [System.Serializable]
 public class PerlinNoise : GenerationMethodBase
 {
-	public PerlinNoise(GenerationSettings settings, int seed) : base(settings, seed)
+	public PerlinNoise(GenerationSettings settings, int seed, float scaleOverride) : base(settings, seed, scaleOverride)
 	{
 	}
 
@@ -42,6 +42,7 @@ public class PerlinNoise : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		return Mathf.PerlinNoise(point.x, point.y);
+		float val = Mathf.PerlinNoise(point.x, point.y);
+		return val;
 	}
 }

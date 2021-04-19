@@ -21,13 +21,18 @@ public class TerrainGenerator : MonoBehaviour
 	public IGenerationMethod[] generationMethods;
 
 	[SerializeField]
+	public LODInfo[] LODLookupTable;// = { 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 30 };
+
+	[SerializeField]
 	public GenerationSettings[] generationSettings;
 
+	public bool DEBUG = false;
 	public bool useFirstHeightMapAsMask = true;
 	public bool autoUpdateMap = false;
 	public int seed = 0;
 	public float mapHeightMultiplier = 10;
 	public float scaleMultiplier = 1f;
+	private static float scaleMultiplierStatic;
 	public float seaLevel = 1f;
 
 	//LOD
@@ -37,8 +42,6 @@ public class TerrainGenerator : MonoBehaviour
 
 	[Range(0, 9), SerializeField]
 	private int LOD;
-
-	private int[] LODLookupTable = { 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 30 };
 
 	private MeshFilter meshFilter;
 
@@ -96,6 +99,8 @@ public class TerrainGenerator : MonoBehaviour
 
 		if (mapHeightMultiplier <= 0)
 			mapHeightMultiplier = 0.0001f;
+
+		scaleMultiplierStatic = scaleMultiplier;
 	}
 
 	public void GeneratePreviewMap()
@@ -119,7 +124,7 @@ public class TerrainGenerator : MonoBehaviour
 		if (saveToFile)
 			HeightMapSaver.SaveToTexture(dh.Math.NormalizeMap(chunkData.heightMap), "map");
 
-		MeshDataThread(EditorOnMeshDataReceived, chunkData);
+		MeshDataThread(EditorOnMeshDataReceived, chunkData, LOD);
 	}
 
 	private void EditorOnMeshDataReceived(MeshData meshData)
@@ -164,15 +169,15 @@ public class TerrainGenerator : MonoBehaviour
 		}
 	}
 
-	public void RequestMeshData(Action<MeshData> callback, ChunkData chunkData)
+	public void RequestMeshData(Action<MeshData> callback, ChunkData chunkData, int lod)
 	{
 		ThreadPool.QueueUserWorkItem(delegate
-		{ MeshDataThread(callback, chunkData); });
+		{ MeshDataThread(callback, chunkData, lod); });
 	}
 
-	private void MeshDataThread(Action<MeshData> callback, ChunkData chunkData)
+	private void MeshDataThread(Action<MeshData> callback, ChunkData chunkData, int lod)
 	{
-		MeshData meshData = MeshGenerator.GenerateTerrainMesh(chunkData.heightMap, mapHeightMultiplier, LODLookupTable[LOD]);
+		MeshData meshData = MeshGenerator.GenerateTerrainMesh(chunkData.heightMap, mapHeightMultiplier, lod);
 
 		//lock queue so no other threads access it
 		lock (meshDataInfosQueue)
@@ -287,44 +292,45 @@ public class TerrainGenerator : MonoBehaviour
 			generationMethods[i] = GetGenerationMethod(generationSettings[i], seed);
 		}
 	}
+
 	public static IGenerationMethod GetGenerationMethod(GenerationSettings settings, int seed)
 	{
 		IGenerationMethod generationMethod = null;
 		switch (settings.methodType)
 		{
-			case GenerationSettings.GenerationMethodType.SpatialSubdivision:
+			/*case GenerationSettings.GenerationMethodType.SpatialSubdivision:
 				settings.methodName = "Spatial Subdivision";
 				generationMethod = new SpatialSubdivision(settings, seed);
-				break;
+				break;*/
 
 			case GenerationSettings.GenerationMethodType.PerlinNoise:
 				settings.methodName = "Perlin";
-				generationMethod = new PerlinNoise(settings, seed);
+				generationMethod = new PerlinNoise(settings, seed, scaleMultiplierStatic);
 				break;
 
 			case GenerationSettings.GenerationMethodType.RidgedPerlinNoise:
 				settings.methodName = "Ridged";
-				generationMethod = new RidgedPerlinNoise(settings, seed);
+				generationMethod = new RidgedPerlinNoise(settings, seed, scaleMultiplierStatic);
 				break;
 
 			case GenerationSettings.GenerationMethodType.Voronoi:
 				settings.methodName = "Voronoi";
-				generationMethod = new VoronoiDiagrams(settings, seed);
+				generationMethod = new VoronoiDiagrams(settings, seed, scaleMultiplierStatic);
 				break;
 
 			case GenerationSettings.GenerationMethodType.Sine:
 				settings.methodName = "Sine";
-				generationMethod = new Sine(settings, seed);
+				generationMethod = new Sine(settings, seed, scaleMultiplierStatic);
 				break;
 
 			case GenerationSettings.GenerationMethodType.Cosine:
 				settings.methodName = "Cosine";
-				generationMethod = new Cosine(settings, seed);
+				generationMethod = new Cosine(settings, seed, scaleMultiplierStatic);
 				break;
 
 			case GenerationSettings.GenerationMethodType.Billow:
 				settings.methodName = "Billow";
-				generationMethod = new Billow(settings, seed);
+				generationMethod = new Billow(settings, seed, scaleMultiplierStatic);
 				break;
 		}
 

@@ -9,7 +9,7 @@ public class VoronoiDiagrams : GenerationMethodBase
 	private bool pointsCreated = false;
 	private List<List<Vector2>> points;
 
-	public VoronoiDiagrams(GenerationSettings settings, int seed) : base(settings, seed)
+	public VoronoiDiagrams(GenerationSettings settings, int seed, float scaleOverride) : base(settings, seed, scaleOverride)
 	{
 		this.numberOfVoronoiPoints = (int)(settings.Scale > 50 ? 50 : settings.Scale);
 	}

@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Billow : GenerationMethodBase
 {
-	public Billow(GenerationSettings generationSettings, int seed) : base(generationSettings, seed)
+	public Billow(GenerationSettings generationSettings, int seed, float scaleOverride) : base(generationSettings, seed, scaleOverride)
 	{
 	}
 

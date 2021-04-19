@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Sine : GenerationMethodBase
 {
-	public Sine(GenerationSettings generationSettings, int seed) : base(generationSettings, seed)
+	public Sine(GenerationSettings generationSettings, int seed, float scaleOverride) : base(generationSettings, seed, scaleOverride)
 	{
 	}
 
@@ -43,8 +43,8 @@ public class Sine : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		float sinArg = (Mathf.PerlinNoise(point.x, point.y) * 2f - 1);
-		float val = 1 - Mathf.Abs(Mathf.Sin(sinArg));
+		float sinArg = 1 - Mathf.Abs(Mathf.PerlinNoise(point.x, point.y) * 2f - 1);
+		float val = Mathf.Sin(sinArg);
 		return val;
 	}
 }

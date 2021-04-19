@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class EndlessTerrainGenerator : MonoBehaviour
 {
-	public const float maxViewDist = 4500;
-
+	public static float maxViewDist = 4000;
+	public const float debugViewDist = 1000;
 	public Transform viewer;
 
 	public static Vector3 viewerPosition;
@@ -42,8 +42,14 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 		private ChunkData chunkData;
 
-		public TerrainChunk(Vector2 coord, int size, Transform parent)
+		private LODInfo[] LODLevels;
+		private MeshLOD[] meshLODs;
+		private bool chunkDataReceived = false;
+		private int prevLOD = -1;
+
+		public TerrainChunk(Vector2 coord, int size, Transform parent, LODInfo[] LODLevels)
 		{
+			this.LODLevels = LODLevels;
 			position = coord * size;
 
 			//generate data for chunk
@@ -53,6 +59,13 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 			//creating gameobject
 			meshObject = new GameObject("Terrain Chunk [" + coord.x + ", " + coord.y + "]");
+
+			meshLODs = new MeshLOD[LODLevels.Length];
+
+			for (int i = 0; i < meshLODs.Length; ++i)
+			{
+				meshLODs[i] = new MeshLOD(LODLevels[i].lod);
+			}
 
 			//set mesh object static
 			meshObject.isStatic = true;
@@ -68,12 +81,16 @@ public class EndlessTerrainGenerator : MonoBehaviour
 			//adding components
 			meshFilter = meshObject.AddComponent<MeshFilter>();
 			meshRenderer = meshObject.AddComponent<MeshRenderer>();
+
+			//set material
+			meshRenderer.material = TerrainGenerator.terrainMaterial;
 		}
 
 		private void OnChunkDataReceived(ChunkData chunkData)
 		{
 			this.chunkData = chunkData;
-			TerrainGenerator.RequestMeshData(OnMeshDataReceived, chunkData);
+
+			this.chunkDataReceived = true;
 
 			bool waterVisible = false;
 
@@ -115,17 +132,11 @@ public class EndlessTerrainGenerator : MonoBehaviour
 			waterPlane.transform.localScale = new Vector3(chunkData.heightMap.GetLength(1) - 1, chunkData.heightMap.GetLength(0) - 1, 1f);
 		}
 
-		private void OnMeshDataReceived(MeshData meshData)
-		{
-			//assing mesh data to mesh
-			meshFilter.mesh = meshData.CreateMesh();
-
-			//set material
-			meshRenderer.material = TerrainGenerator.terrainMaterial;
-		}
-
 		public void UpdateTerrainChunk()
 		{
+			if (!chunkDataReceived)
+				return;
+
 			//if chunk isn't visible
 			if (!IsVisible())
 			{
@@ -141,6 +152,38 @@ public class EndlessTerrainGenerator : MonoBehaviour
 
 					//if it shouldnt be visible set it to it
 					SetVisible(false);
+			}
+
+			if (IsVisible())
+			{
+				int lodIndex = 0;
+				float viewerDstToEdge = bounds.SqrDistance(viewerPosition);
+
+				for (int i = 0; i < LODLevels.Length - 1; ++i)
+				{
+					if (viewerDstToEdge > LODLevels[i].distanceThreshold * LODLevels[i].distanceThreshold)
+					{
+						lodIndex = i + 1;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (lodIndex != prevLOD)
+				{
+					MeshLOD meshLOD = meshLODs[lodIndex];
+					if (meshLOD.hasMesh)
+					{
+						prevLOD = lodIndex;
+						meshFilter.mesh = meshLOD.mesh;
+					}
+					else if (!meshLOD.hasRequestedMesh)
+					{
+						meshLOD.RequestMesh(chunkData);
+					}
+				}
 			}
 		}
 
@@ -165,7 +208,11 @@ public class EndlessTerrainGenerator : MonoBehaviour
 			float viewerDstToEdge = bounds.SqrDistance(viewerPosition);
 
 			//check if it should be visible
-			bool isInViewRange = viewerDstToEdge <= maxViewDist * maxViewDist;
+			bool isInViewRange;
+			if (terrainGenerator.DEBUG)
+				isInViewRange = viewerDstToEdge <= debugViewDist * debugViewDist;
+			else
+				isInViewRange = viewerDstToEdge <= maxViewDist * maxViewDist;
 
 			return EndlessTerrainGenerator.IsVisibleToCamera(meshRenderer.transform.position) && isInViewRange;
 		}
@@ -176,7 +223,13 @@ public class EndlessTerrainGenerator : MonoBehaviour
 	{
 		TerrainGenerator = FindObjectOfType<TerrainGenerator>();
 		chunkSize = TerrainGenerator.chunkSize - 1;
-		visibleChunks = Mathf.RoundToInt(maxViewDist / chunkSize);
+
+		maxViewDist = TerrainGenerator.LODLookupTable[TerrainGenerator.LODLookupTable.Length - 1].distanceThreshold;
+
+		if (terrainGenerator.DEBUG)
+			visibleChunks = Mathf.RoundToInt(debugViewDist / chunkSize);
+		else
+			visibleChunks = Mathf.RoundToInt(maxViewDist / chunkSize);
 	}
 
 	// Update is called once per frame
@@ -207,8 +260,16 @@ public class EndlessTerrainGenerator : MonoBehaviour
 				{
 					distance.Set(viewedChunkCoord.x * chunkSize, 0, viewedChunkCoord.y * chunkSize);
 
-					if (Vector3.Distance(distance, viewerPosition) < maxViewDist)
-						terrainChunkDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, this.transform));
+					if (terrainGenerator.DEBUG)
+					{
+						if (Vector3.Distance(distance, viewerPosition) < debugViewDist)
+							terrainChunkDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, this.transform, TerrainGenerator.LODLookupTable));
+					}
+					else
+					{
+						if (Vector3.Distance(distance, viewerPosition) < maxViewDist)
+							terrainChunkDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, this.transform, TerrainGenerator.LODLookupTable));
+					}
 				}
 			}
 		}
@@ -240,5 +301,30 @@ public class EndlessTerrainGenerator : MonoBehaviour
 		}
 
 		return true;
+	}
+
+	private class MeshLOD
+	{
+		public Mesh mesh;
+		public bool hasRequestedMesh;
+		public bool hasMesh;
+		private int lod;
+
+		public MeshLOD(int lod)
+		{
+			this.lod = lod;
+		}
+
+		private void OnMeshDataReceived(MeshData meshData)
+		{
+			mesh = meshData.CreateMesh();
+			hasMesh = true;
+		}
+
+		public void RequestMesh(ChunkData chunkData)
+		{
+			hasRequestedMesh = true;
+			terrainGenerator.RequestMeshData(OnMeshDataReceived, chunkData, lod);
+		}
 	}
 }

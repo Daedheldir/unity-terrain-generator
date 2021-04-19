@@ -48,6 +48,30 @@ namespace dh
 			return NormalizeMap(inputMap, minValue, maxValue);
 		}
 
+		public static float[,] NormalizeWithEasing(float[,] inputMap, float minValue, float maxValue)
+		{
+			float[,] map = new float[inputMap.GetLength(0), inputMap.GetLength(1)];
+
+			for (int z = 0; z < inputMap.GetLength(1); ++z)
+			{
+				for (int x = 0; x < inputMap.GetLength(0); ++x)
+				{
+					float value = Mathf.InverseLerp(minValue, maxValue, inputMap[x, z]);
+					Debug.Assert(value >= 0f && value <= 1f, "Value doesn't fit within bounds! Value = " + value);
+					map[x, z] = easingFunc(value);
+				}
+			}
+			return map;
+		}
+		private static float easingFunc(float input)
+		{
+			if (input > 1f || input < 0f)
+			{
+				return input;
+			}
+			return 6 * Mathf.Pow(input, 5) - 15 * Mathf.Pow(input, 4) + 10 * Mathf.Pow(input, 3);
+		}
+
 		public static float CosineInterpolate(float min, float max, float ang)
 		{
 			float angle;

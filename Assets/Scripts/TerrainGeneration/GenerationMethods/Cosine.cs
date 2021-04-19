@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Cosine : GenerationMethodBase
 {
-	public Cosine(GenerationSettings generationSettings, int seed) : base(generationSettings, seed)
+	public Cosine(GenerationSettings generationSettings, int seed, float scaleOverride) : base(generationSettings, seed, scaleOverride)
 	{
 	}
 
@@ -43,8 +43,8 @@ public class Cosine : GenerationMethodBase
 
 	public override float EvaluateHeight(Vector2 point)
 	{
-		float arg = (Mathf.PerlinNoise(point.x, point.y) * 2f - 1);
-		float val = 1 - Mathf.Abs(Mathf.Cos(arg));
-		return val * 2;
+		float arg = (2 * Mathf.PerlinNoise(point.x, point.y) - 1);
+		float val = 2 * (1 - Mathf.Cos(arg));
+		return val;
 	}
 }

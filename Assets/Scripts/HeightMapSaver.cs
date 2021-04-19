@@ -29,6 +29,29 @@ public static class HeightMapSaver
 		stream.Close();
 	}
 
+	public static void SaveToCsv(string[,] table, string name)
+	{
+		FileStream stream;
+		if (File.Exists(name + ".csv"))
+			File.Delete(name + ".csv");
+		stream = File.Open(name + ".csv", FileMode.Create);
+
+		StreamWriter streamWriter = new StreamWriter(stream);
+
+		for (int z = 0; z < table.GetLength(0); ++z)
+		{
+			for (int x = 0; x < table.GetLength(1); ++x)
+			{
+				streamWriter.Write(table[z, x]);
+				streamWriter.Write(',');
+			}
+			streamWriter.WriteLine();
+		}
+
+		streamWriter.Close();
+		stream.Close();
+	}
+
 	public static void SaveToTexture(float[,] heightMap, string name)
 	{
 		Texture2D texture = new Texture2D(heightMap.GetLength(1), heightMap.GetLength(0));
@@ -66,6 +89,7 @@ public static class HeightMapSaver
 
 		streamWriter.WriteLine("\\begin{table}[ht]");
 		streamWriter.WriteLine("\\centering");
+		streamWriter.WriteLine("\\caption{" + caption + "}");
 
 		streamWriter.Write("\\begin{tabularx}{1\\textwidth}{ |");
 		streamWriter.Write(">{\\centering\\arraybackslash}X||");
@@ -106,8 +130,7 @@ public static class HeightMapSaver
 		streamWriter.WriteLine("\\hline");
 
 		streamWriter.WriteLine("\\end{tabularx}");
-		streamWriter.WriteLine("\\caption{" + caption + "}");
-		streamWriter.WriteLine("\\label{ table:" + fileName + "}");
+		streamWriter.WriteLine("\\label{table:" + fileName + "}");
 		streamWriter.WriteLine("\\end{table}");
 
 		streamWriter.Close();
@@ -125,6 +148,7 @@ public static class HeightMapSaver
 
 		streamWriter.WriteLine("\\begin{table}[h]");
 		streamWriter.WriteLine("\\centering");
+		streamWriter.WriteLine("\\caption{" + caption + "}");
 
 		streamWriter.Write("\\begin{tabularx}{1\\textwidth}{ |");
 		streamWriter.Write(">{\\centering\\arraybackslash}X||");
@@ -162,8 +186,7 @@ public static class HeightMapSaver
 		streamWriter.WriteLine("\\hline");
 
 		streamWriter.WriteLine("\\end{tabularx}");
-		streamWriter.WriteLine("\\caption{" + caption + "}");
-		streamWriter.WriteLine("\\label{ table:" + fileName + "}");
+		streamWriter.WriteLine("\\label{table:" + fileName + "}");
 		streamWriter.WriteLine("\\end{table}");
 
 		streamWriter.Close();

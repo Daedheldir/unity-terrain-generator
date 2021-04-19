@@ -8,7 +8,7 @@ public class SpatialSubdivision : GenerationMethodBase
 	private float minValue = float.MaxValue;
 	private float maxValue = float.MinValue;
 
-	public SpatialSubdivision(GenerationSettings settings, int seed) : base(settings, seed)
+	public SpatialSubdivision(GenerationSettings settings, int seed, float scaleOverride) : base(settings, seed, scaleOverride)
 	{
 	}
 
@@ -19,7 +19,7 @@ public class SpatialSubdivision : GenerationMethodBase
 		{
 			for (int x = 0; x < 2; ++x)
 			{
-				input[z, x] = prng.Next(-100000, 100000) / 200000;
+				input[z, x] = (float)prng.NextDouble() * settings.scale * settings.ChunkSize;
 			}
 		}
 
@@ -34,7 +34,7 @@ public class SpatialSubdivision : GenerationMethodBase
 			minValue = value;
 	}
 
-	private float[,] genMap(float[,] previousMap, int step)
+	private float[,] genMap(float[,] previousMap, int step, float amplitude)
 	{
 		if (previousMap.Length >= (settings.ChunkSize) * (settings.ChunkSize))
 		{
@@ -51,40 +51,58 @@ public class SpatialSubdivision : GenerationMethodBase
 				newMap[z * 2, x * 2] = previousMap[z, x];
 			}
 		}
-		int loopCounter = 0;
 
+		//average all new values
 		//find values for empty points diagonally
 		for (int z = 1; z < newMap.GetLength(0); z += 2)
 		{
 			for (int x = 1; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageDiagonal(newMap, z, x) + (prng.Next((int)-settings.smoothing*100, (int)settings.smoothing*100) / (step + 0.1f))/100f;
+				newMap[z, x] = averageDiagonal(newMap, z, x);
 
 				//update min and max values
 				UpdateMinMaxValues(newMap[z, x]);
-
-				loopCounter++;
 			}
 		}
-		//Debug.Log("Loop counter after first loop " + loopCounter);
-		loopCounter = 0;
 
 		//find values for empty points orthogonally
 		for (int z = 0; z < newMap.GetLength(0); ++z)
 		{
 			for (int x = (z + 1) % 2; x < newMap.GetLength(1); x += 2)
 			{
-				newMap[z, x] = averageOrthogonal(newMap, z, x) + (prng.Next((int)-settings.smoothing * 100, (int)settings.smoothing * 100) / (step + 0.1f)) / 100f;
+				newMap[z, x] = averageOrthogonal(newMap, z, x);
 
 				//update min and max values
 				UpdateMinMaxValues(newMap[z, x]);
-
-				loopCounter++;
 			}
 		}
-		//Debug.Log("Loop counter after second loop " + loopCounter);
 
-		return genMap(newMap, step + 1);
+		//find new values
+		for (int z = 0; z < newMap.GetLength(0); z += 2)
+		{
+			for (int x = 1; x < newMap.GetLength(1); x += 2)
+			{
+				newMap[z, x] += (float)prng.NextDouble() * amplitude * settings.scale * settings.ChunkSize;
+
+				//update min and max values
+				UpdateMinMaxValues(newMap[z, x]);
+			}
+		}
+
+		for (int z = 1; z < newMap.GetLength(0); z += 2)
+		{
+			for (int x = 0; x < newMap.GetLength(1); ++x)
+			{
+				newMap[z, x] += (float)prng.NextDouble() * amplitude * settings.scale * settings.ChunkSize;
+
+				//update min and max values
+				UpdateMinMaxValues(newMap[z, x]);
+			}
+		}
+
+		//Debug.Log("Loop counter after second loop " + loopCounter);
+		amplitude *= settings.persistance;
+		return genMap(newMap, step + 1, amplitude);
 	}
 
 	private float averageOrthogonal(float[,] map, int z, int x)
@@ -158,7 +176,8 @@ public class SpatialSubdivision : GenerationMethodBase
 
 	public override float[,] CreateHeightMap(Vector2 generationOffset)
 	{
-		return (dh.Math.NormalizeMap(genMap(genInputArr(), 0), minValue, maxValue));
+		float amplitude = 1f / settings.smoothing + 0.01f;
+		return dh.Math.NormalizeWithEasing(genMap(genInputArr(), 1, amplitude), minValue, maxValue);
 	}
 
 	public override float EvaluateHeight(Vector2 point)

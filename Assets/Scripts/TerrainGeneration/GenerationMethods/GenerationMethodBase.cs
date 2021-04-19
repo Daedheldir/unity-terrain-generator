@@ -7,8 +7,9 @@ public abstract class GenerationMethodBase : IGenerationMethod
 	protected GenerationSettings settings;
 	protected System.Random prng;
 	private Vector2[] randomOffsets;
+	private float scaleOverride;
 
-	protected GenerationMethodBase(GenerationSettings settings, int seed)
+	protected GenerationMethodBase(GenerationSettings settings, int seed, float scaleOverride)
 	{
 		this.settings = settings;
 		prng = new System.Random(seed);
@@ -22,6 +23,8 @@ public abstract class GenerationMethodBase : IGenerationMethod
 			float offsetZ = prng.Next(-100000, 100000);
 			randomOffsets[i] = new Vector2(offsetX, offsetZ);
 		}
+
+		this.scaleOverride = scaleOverride;
 	}
 
 	public virtual float[,] CreateHeightMap(Vector2 generationOffset)
@@ -64,8 +67,8 @@ public abstract class GenerationMethodBase : IGenerationMethod
 	protected Vector2 EvaluateSamplePoint(float x, float z, Vector2 octaveOffset, float frequency)
 	{
 		Vector2 sample = new Vector2();
-		sample.y = ((z + octaveOffset.y - settings.ChunkSize / 2f) / settings.Scale) * frequency;
-		sample.x = ((x + octaveOffset.x - settings.ChunkSize / 2f) / settings.Scale) * frequency;
+		sample.y = ((z + octaveOffset.y - settings.ChunkSize / 2f) / (settings.Scale * scaleOverride)) * frequency;
+		sample.x = ((x + octaveOffset.x - settings.ChunkSize / 2f) / (settings.Scale * scaleOverride)) * frequency;
 
 		return sample;
 	}

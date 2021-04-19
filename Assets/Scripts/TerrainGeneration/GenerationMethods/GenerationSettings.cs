@@ -7,8 +7,9 @@ public class GenerationSettings
 {
 	public enum GenerationMethodType
 	{
-		SpatialSubdivision,
+		//SpatialSubdivision,
 		PerlinNoise,
+
 		RidgedPerlinNoise,
 		Voronoi,
 		Sine,

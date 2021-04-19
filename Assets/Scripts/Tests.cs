@@ -90,7 +90,7 @@ public static class Tests
 					tables[type + 1, tableColumn++] = memoryUseInMB + shortNotation[counter];
 				}
 			}
-
+			HeightMapSaver.SaveToCsv(tables, "tests");
 			HeightMapSaver.SaveTexTable(tables, "tests_table", "Testy - " + iterations + " iteracji");
 
 			Debug.Log("Tests Finished");

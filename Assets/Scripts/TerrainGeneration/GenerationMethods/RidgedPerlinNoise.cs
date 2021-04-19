@@ -6,7 +6,7 @@ using UnityEngine;
 [System.Serializable]
 public class RidgedPerlinNoise : GenerationMethodBase
 {
-	public RidgedPerlinNoise(GenerationSettings settings, int seed) : base(settings, seed)
+	public RidgedPerlinNoise(GenerationSettings settings, int seed, float scaleOverride) : base(settings, seed, scaleOverride)
 	{
 	}
 
@@ -43,6 +43,7 @@ public class RidgedPerlinNoise : GenerationMethodBase
 	public override float EvaluateHeight(Vector2 point)
 	{
 		float val = 1 - Mathf.Abs((2f * Mathf.PerlinNoise(point.x, point.y)) - 1f);
-		return val * val;
+		val *= val;
+		return val;
 	}
 }

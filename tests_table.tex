@@ -1,23 +1,21 @@
 \begin{table}[h]
 \centering
-\begin{tabularx}{1\textwidth}{ |>{\centering\arraybackslash}X||>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\begin{tabularx}{1\textwidth}{ |>{\centering\arraybackslash}X||>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 Method Name & Avg. T 1 octave & Avg. Mem 1 octave & Avg. T 2 octaves & Avg. Mem 2 octaves & Avg. T 4 octaves & Avg. Mem 4 octaves & Avg. T 8 octaves & Avg. Mem 8 octaves\\
 \hline
 \hline
-Spatial Subdivision & 66.7ms & 11MB & 63ms & 11MB & 64.2ms & 11MB & 63.5ms & 11MB\\
+Perlin & 13.8ms & 456KB & 22.6ms & 456KB & 43.4ms & 456KB & 83.7ms & 456KB\\
 \hline
-Perlin & 13.9ms & 457KB & 23.4ms & 457.1KB & 43ms & 457.7KB & 83ms & 458.6KB\\
+Ridged & 16.6ms & 456KB & 28.6ms & 456KB & 54.9ms & 456KB & 107.8ms & 456KB\\
 \hline
-Ridged & 16.9ms & 457KB & 29.6ms & 457.3KB & 57.2ms & 457.9KB & 107ms & 459.1KB\\
+Voronoi & 36.8ms & 456KB & 98ms & 456KB & 399.4ms & 456KB & 3543.6ms & 495.4KB\\
 \hline
-Voronoi & 39.1ms & 457.6KB & 99.4ms & 458.9KB & 414.4ms & 466.6KB & 3691.8ms & 545.7KB\\
+Sine & 20ms & 456KB & 35.6ms & 456KB & 69.6ms & 456KB & 135.5ms & 456KB\\
 \hline
-Sine & 20.9ms & 457.1KB & 37.8ms & 457.6KB & 73.8ms & 458.3KB & 141.6ms & 460KB\\
+Cosine & 18ms & 456KB & 31.2ms & 456KB & 60.8ms & 456KB & 117.4ms & 456KB\\
 \hline
-Cosine & 21.9ms & 457.1KB & 38.5ms & 457.6KB & 73ms & 458.3KB & 144.1ms & 460.1KB\\
-\hline
-Billow & 16.8ms & 457KB & 29.9ms & 457.2KB & 56.3ms & 457.9KB & 110.3ms & 459.2KB\\
+Billow & 16.3ms & 456KB & 28ms & 456KB & 53.7ms & 456KB & 103.5ms & 456KB\\
 \hline
 \end{tabularx}
 \caption{Testy - 100 iteracji}
